@@ -1,12 +1,14 @@
 import { describe, expect, it } from "vitest";
 import {
   arcSpan,
+  buildAllSeats,
   buildStandSeats,
   CENTER_X,
   CENTER_Y,
   vToRad,
   type Stand,
 } from "./geometry";
+import { STANDS } from "./stands";
 
 const HOLLIES: Stand = {
   id: "hollies",
@@ -121,5 +123,38 @@ describe("buildStandSeats", () => {
     const midAngle = vToRad(0.5);
     expect(seat!.x).toBeCloseTo(CENTER_X + 1 * Math.cos(midAngle));
     expect(seat!.y).toBeCloseTo(CENTER_Y + 1 * Math.sin(midAngle));
+  });
+});
+
+describe("buildAllSeats", () => {
+  it("emits seats for every stand", () => {
+    const seats = buildAllSeats(STANDS);
+    for (const stand of STANDS) {
+      const standSeats = seats.filter((s) => s.standId === stand.id);
+      expect(standSeats.length).toBeGreaterThan(0);
+    }
+  });
+
+  it("emits between 1200 and 1400 seats with the mock geometry", () => {
+    // PRD §7 estimated ~3500. The mock's geometry (SEAT_SPACING=9,
+    // ROW_SPACING=10, the six-stand layout) actually yields ~1280. Flagged
+    // for product decision in BWF-1ew.10 — ramifications for the £20k
+    // target at the £10 floor (need ≥2000 donors to hit it on minimums
+    // alone).
+    const seats = buildAllSeats(STANDS);
+    expect(seats.length).toBeGreaterThanOrEqual(1200);
+    expect(seats.length).toBeLessThanOrEqual(1400);
+  });
+
+  it("emits globally unique seat ids", () => {
+    const seats = buildAllSeats(STANDS);
+    const ids = seats.map((s) => s.id);
+    expect(new Set(ids).size).toBe(ids.length);
+  });
+
+  it("is deterministic — repeated calls produce identical seat ids", () => {
+    const a = buildAllSeats(STANDS).map((s) => s.id);
+    const b = buildAllSeats(STANDS).map((s) => s.id);
+    expect(a).toEqual(b);
   });
 });

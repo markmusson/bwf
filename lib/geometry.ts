@@ -75,3 +75,7 @@ export function buildStandSeats(stand: Stand): Seat[] {
 
   return seats;
 }
+
+export function buildAllSeats(stands: readonly Stand[]): Seat[] {
+  return stands.flatMap(buildStandSeats);
+}
