@@ -4,7 +4,7 @@ export default function Home() {
       <h1 className="text-4xl font-semibold tracking-tight sm:text-5xl">
         BWF Virtual Seats
       </h1>
-      <p className="max-w-md text-balance text-lg text-zinc-600 dark:text-zinc-400">
+      <p className="max-w-md text-lg text-balance text-zinc-600 dark:text-zinc-400">
         Coming soon. Pick a seat at Edgbaston, leave a tribute, support the Bob
         Willis Fund.
       </p>

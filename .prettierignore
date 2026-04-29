@@ -1,0 +1,25 @@
+node_modules
+.next
+out
+build
+dist
+coverage
+playwright-report
+test-results
+package-lock.json
+
+# Binary / non-source artefacts
+*.pdf
+*.eml
+Asset Pack PCUK
+
+# Reference / external content — don't reformat
+blue-for-bob-v4.html
+design/
+*.md
+!app/**/*.md
+!lib/**/*.md
+!tests/**/*.md
+
+# Beads workspace
+.beads
