@@ -60,3 +60,8 @@ shot.png
 
 # Email exports — they're context, not code; keep out of git history
 *.eml
+
+# Beads / Dolt files (added by bd init)
+.dolt/
+*.db
+.beads-credential-key
