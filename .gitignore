@@ -1,0 +1,62 @@
+# Dependencies
+node_modules/
+.pnp
+.pnp.js
+.yarn/install-state.gz
+
+# Next.js
+.next/
+out/
+build/
+dist/
+
+# Testing
+coverage/
+playwright-report/
+test-results/
+.nyc_output/
+
+# Vercel
+.vercel
+
+# Env files — never commit
+.env
+.env*.local
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+!.env.example
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# TypeScript
+*.tsbuildinfo
+next-env.d.ts
+
+# Supabase
+supabase/.branches
+supabase/.temp
+
+# Local Claude Code session artifacts
+.claude/
+shot_*.png
+shot.png
+
+# Email exports — they're context, not code; keep out of git history
+*.eml
