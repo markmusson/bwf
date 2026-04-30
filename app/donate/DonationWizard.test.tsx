@@ -59,6 +59,40 @@ describe("DonationWizard", () => {
     }
   });
 
+  it("renders the StepGiftAid form on step 5", async () => {
+    const user = userEvent.setup();
+    render(<DonationWizard />);
+
+    for (let i = 0; i < 4; i++) {
+      await user.click(screen.getByRole("button", { name: "Next" }));
+    }
+
+    expect(
+      screen.getByRole("checkbox", { name: /Add Gift Aid/i }),
+    ).toBeInTheDocument();
+  });
+
+  it("preserves Gift Aid state across navigation", async () => {
+    const user = userEvent.setup();
+    render(<DonationWizard />);
+
+    for (let i = 0; i < 4; i++) {
+      await user.click(screen.getByRole("button", { name: "Next" }));
+    }
+
+    await user.click(screen.getByRole("checkbox", { name: /Add Gift Aid/i }));
+    expect(
+      screen.getByRole("group", { name: "Gift Aid uplift summary" }),
+    ).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Back" }));
+    await user.click(screen.getByRole("button", { name: "Next" }));
+
+    expect(
+      screen.getByRole("group", { name: "Gift Aid uplift summary" }),
+    ).toBeInTheDocument();
+  });
+
   it("returns to the previous step when Back is pressed", async () => {
     const user = userEvent.setup();
     render(<DonationWizard />);

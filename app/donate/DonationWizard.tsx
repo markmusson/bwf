@@ -1,6 +1,13 @@
 "use client";
 
 import { useState } from "react";
+import {
+  EMPTY_GIFT_AID_VALUE,
+  StepGiftAid,
+  type StepGiftAidValue,
+} from "./StepGiftAid";
+
+const MOCK_AMOUNT_PENCE = 1000;
 
 const STEP_HEADINGS = [
   "Choose your donation",
@@ -34,6 +41,8 @@ function isStepNumber(value: number): value is StepNumber {
 
 export function DonationWizard() {
   const [step, setStep] = useState<StepNumber>(1);
+  const [giftAid, setGiftAid] =
+    useState<StepGiftAidValue>(EMPTY_GIFT_AID_VALUE);
 
   const heading = STEP_HEADINGS[step - 1] ?? STEP_HEADINGS[0];
   const breadcrumbIndex = BREADCRUMB_INDEX_FOR_STEP[step - 1] ?? 0;
@@ -96,10 +105,18 @@ export function DonationWizard() {
         aria-label={`Step ${step}: ${heading}`}
         className="bg-bwf-mid/30 ring-bwf-blue/20 flex-1 rounded-2xl p-6 ring-1"
       >
-        <p className="text-sm text-white/70">
-          Mock content. The real form lands as part of the payment-loop work in
-          Stage 2.
-        </p>
+        {step === 5 ? (
+          <StepGiftAid
+            amountPence={MOCK_AMOUNT_PENCE}
+            value={giftAid}
+            onChange={setGiftAid}
+          />
+        ) : (
+          <p className="text-sm text-white/70">
+            Mock content. The real form lands as part of the payment-loop work
+            in Stage 2.
+          </p>
+        )}
       </div>
 
       <nav
