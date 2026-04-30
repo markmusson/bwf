@@ -49,9 +49,8 @@ Thumbs.db
 *.tsbuildinfo
 next-env.d.ts
 
-# Supabase
-supabase/.branches
-supabase/.temp
+# Convex
+convex/_generated/
 
 # Local Claude Code session artifacts
 .claude/
