@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import { Barlow, Barlow_Condensed } from "next/font/google";
 import { BrandFooter } from "./components/BrandFooter";
 import { BrandHeader } from "./components/BrandHeader";
+import { CookieBanner } from "./components/CookieBanner";
 import { Providers } from "./providers";
 import "./globals.css";
 
@@ -40,6 +41,7 @@ export default function RootLayout({
             <BrandHeader />
             <main className="flex flex-1 flex-col">{children}</main>
             <BrandFooter />
+            <CookieBanner />
           </Providers>
         </ConvexAuthNextjsServerProvider>
       </body>
