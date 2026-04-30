@@ -1,8 +1,48 @@
 import { ConvexError, v } from "convex/values";
 import { getAuthUserId } from "@convex-dev/auth/server";
-import { internalMutation, mutation, query } from "./_generated/server";
+import type { Id } from "./_generated/dataModel";
+import {
+  internalMutation,
+  mutation,
+  query,
+  type MutationCtx,
+} from "./_generated/server";
 
 const HOLD_TTL_MS = 10 * 60 * 1000;
+
+// Serialisable seat-claim core. Exported under a `_*` name so the
+// concurrency test in holds.test.ts can drive it directly via
+// convex-test's `t.run` without having to seed the auth tables.
+// Production code goes through the public `claim` mutation below.
+export async function _claimSeatForTest(
+  ctx: MutationCtx,
+  seatId: Id<"seats">,
+  userId: Id<"users">,
+): Promise<Id<"holds">> {
+  const seat = await ctx.db.get(seatId);
+  if (!seat || seat.status !== "available") {
+    throw new ConvexError("seat_unavailable");
+  }
+
+  const now = Date.now();
+  const existing = await ctx.db
+    .query("holds")
+    .withIndex("by_seat", (q) => q.eq("seatId", seatId))
+    .first();
+
+  if (existing) {
+    if (existing.expiresAt > now && existing.userId !== userId) {
+      throw new ConvexError("seat_held");
+    }
+    await ctx.db.delete(existing._id);
+  }
+
+  return await ctx.db.insert("holds", {
+    seatId,
+    userId,
+    expiresAt: now + HOLD_TTL_MS,
+  });
+}
 
 // Public: take a seat for 10 minutes. Per 07 §7, exactly one of two
 // concurrent claims for the same seat wins; the other gets seat_held.
@@ -11,30 +51,7 @@ export const claim = mutation({
   handler: async (ctx, { seatId }) => {
     const userId = await getAuthUserId(ctx);
     if (!userId) throw new ConvexError("unauthenticated");
-
-    const seat = await ctx.db.get(seatId);
-    if (!seat || seat.status !== "available") {
-      throw new ConvexError("seat_unavailable");
-    }
-
-    const now = Date.now();
-    const existing = await ctx.db
-      .query("holds")
-      .withIndex("by_seat", (q) => q.eq("seatId", seatId))
-      .first();
-
-    if (existing) {
-      if (existing.expiresAt > now && existing.userId !== userId) {
-        throw new ConvexError("seat_held");
-      }
-      await ctx.db.delete(existing._id);
-    }
-
-    return await ctx.db.insert("holds", {
-      seatId,
-      userId,
-      expiresAt: now + HOLD_TTL_MS,
-    });
+    return await _claimSeatForTest(ctx, seatId, userId);
   },
 });
 
