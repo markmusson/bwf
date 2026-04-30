@@ -2,7 +2,7 @@ import { ConvexError, v } from "convex/values";
 import { getAuthUserId } from "@convex-dev/auth/server";
 import type { Id } from "./_generated/dataModel";
 import { mutation, query, type MutationCtx } from "./_generated/server";
-import { requireAdmin } from "./admin";
+import { logAdminAction, requireAdmin } from "./admin";
 
 // Per 07 §10: prizeEntries are NEVER inserted from a donation flow.
 // This mutation is the only path that adds a row to the table. Donor
@@ -179,11 +179,24 @@ export const runDraw = mutation({
   },
   handler: async (ctx, { drawName, seed }): Promise<RunDrawResult> => {
     const admin = await requireAdmin(ctx);
-    return await _runDrawForTest(ctx, {
+    const result = await _runDrawForTest(ctx, {
       drawName,
       seed,
       runByUserId: admin.userId,
     });
+    if (!result.alreadyRun) {
+      await logAdminAction(ctx, admin, {
+        action: "prizeDraw.run",
+        targetType: "draw",
+        targetId: result.drawId,
+        metadata: {
+          drawName: result.drawName,
+          entryCount: result.entryCount,
+          winnerEntryId: result.winnerEntryId,
+        },
+      });
+    }
+    return result;
   },
 });
 

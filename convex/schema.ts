@@ -87,6 +87,21 @@ export default defineSchema({
     receivedAt: v.number(),
   }).index("by_event", ["eventId"]),
 
+  // Append-only audit trail for admin actions. Every requireAdmin-gated
+  // mutation should log here so we can answer "who approved X and
+  // when?" without trawling logs. Indexed by actor + action so we can
+  // pull a per-admin or per-action stream without scanning.
+  adminAuditLog: defineTable({
+    action: v.string(),
+    actorUserId: v.id("users"),
+    actorEmail: v.string(),
+    targetType: v.string(),
+    targetId: v.string(),
+    metadata: v.optional(v.string()),
+  })
+    .index("by_actor", ["actorUserId"])
+    .index("by_action", ["action"]),
+
   // Audit record for the prize draw. drawName is the idempotency key —
   // re-running with the same name returns the original record. seed +
   // entryIds + the published algorithm let any third party replay the

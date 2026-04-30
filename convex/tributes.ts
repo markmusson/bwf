@@ -1,7 +1,7 @@
 import { ConvexError, v } from "convex/values";
 import { getAuthUserId } from "@convex-dev/auth/server";
 import { moderateTribute } from "../lib/moderation";
-import { requireAdmin } from "./admin";
+import { logAdminAction, requireAdmin } from "./admin";
 import type { Id } from "./_generated/dataModel";
 import { mutation, query, type MutationCtx } from "./_generated/server";
 
@@ -162,6 +162,11 @@ export const adminApprove = mutation({
   handler: async (ctx, { tributeId }) => {
     const admin = await requireAdmin(ctx);
     await ctx.db.patch(tributeId, { status: "approved" as const });
+    await logAdminAction(ctx, admin, {
+      action: "tribute.approve",
+      targetType: "tribute",
+      targetId: tributeId,
+    });
     return { approvedBy: admin.email };
   },
 });
@@ -171,6 +176,11 @@ export const adminReject = mutation({
   handler: async (ctx, { tributeId }) => {
     const admin = await requireAdmin(ctx);
     await ctx.db.patch(tributeId, { status: "rejected" as const });
+    await logAdminAction(ctx, admin, {
+      action: "tribute.reject",
+      targetType: "tribute",
+      targetId: tributeId,
+    });
     return { rejectedBy: admin.email };
   },
 });

@@ -1,7 +1,7 @@
 import { ConvexError } from "convex/values";
 import { getAuthUserId } from "@convex-dev/auth/server";
 import type { Id } from "./_generated/dataModel";
-import type { QueryCtx } from "./_generated/server";
+import type { MutationCtx, QueryCtx } from "./_generated/server";
 
 // Centralised admin-allowlist check. Every admin-only function must
 // call this. Throws ConvexError("forbidden") for anyone outside the
@@ -36,4 +36,29 @@ export async function requireAdmin(ctx: QueryCtx): Promise<AdminContext> {
   }
 
   return { userId, email: user.email };
+}
+
+// Append-only admin action log. Call from any requireAdmin-gated
+// mutation that mutates state — approves, rejects, prize draws.
+// Reads (listForModeration, getDraw) intentionally don't log.
+export interface AdminAuditEntry {
+  action: string;
+  targetType: string;
+  targetId: string;
+  metadata?: Record<string, unknown>;
+}
+
+export async function logAdminAction(
+  ctx: MutationCtx,
+  admin: AdminContext,
+  entry: AdminAuditEntry,
+): Promise<void> {
+  await ctx.db.insert("adminAuditLog", {
+    action: entry.action,
+    actorUserId: admin.userId,
+    actorEmail: admin.email,
+    targetType: entry.targetType,
+    targetId: entry.targetId,
+    metadata: entry.metadata ? JSON.stringify(entry.metadata) : undefined,
+  });
 }

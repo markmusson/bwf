@@ -2,7 +2,8 @@
 // @vitest-environment edge-runtime
 
 import { convexTest } from "convex-test";
-import { describe, expect, test } from "vitest";
+import { afterEach, beforeEach, describe, expect, test } from "vitest";
+import { api } from "./_generated/api";
 import { _optInForTest, _runDrawForTest, pickWinnerIndex } from "./prizeDraw";
 import schema from "./schema";
 
@@ -210,5 +211,88 @@ describe("prizeDraw.runDraw", () => {
         }),
       ),
     ).rejects.toMatchObject({ data: "no_entries" });
+  });
+});
+
+describe("prizeDraw.runDraw (public mutation, admin-gated)", () => {
+  const originalAdminEmails = process.env.ADMIN_EMAILS;
+
+  beforeEach(() => {
+    process.env.ADMIN_EMAILS = "draw-runner@bwf.org";
+  });
+
+  afterEach(() => {
+    if (originalAdminEmails === undefined) {
+      delete process.env.ADMIN_EMAILS;
+    } else {
+      process.env.ADMIN_EMAILS = originalAdminEmails;
+    }
+  });
+
+  async function arrangeWithEntry() {
+    const t = convexTest(schema, modules);
+    const adminId = await t.run((ctx) =>
+      ctx.db.insert("users", { email: "draw-runner@bwf.org" }),
+    );
+    const donorId = await t.run((ctx) => ctx.db.insert("users", {}));
+    const donationId = await t.run((ctx) =>
+      ctx.db.insert("donations", {
+        userId: donorId,
+        amountPence: 1000,
+        currency: "GBP" as const,
+        giftAid: false,
+        hideName: false,
+        hideAmount: false,
+        stripeSessionId: "cs_d",
+        status: "paid" as const,
+      }),
+    );
+    await t.run((ctx) =>
+      ctx.db.insert("prizeEntries", {
+        donationId,
+        userId: donorId,
+        method: "online" as const,
+      }),
+    );
+    return { t, adminId };
+  }
+
+  test("rejects non-admin caller", async () => {
+    const { t } = await arrangeWithEntry();
+    const stranger = await t.run((ctx) =>
+      ctx.db.insert("users", { email: "stranger@example.com" }),
+    );
+    await expect(
+      t
+        .withIdentity({ subject: stranger as unknown as string })
+        .mutation(api.prizeDraw.runDraw, {
+          drawName: "x",
+          seed: "0".repeat(64),
+        }),
+    ).rejects.toMatchObject({ data: "forbidden" });
+  });
+
+  test("admin run writes a single audit log row; idempotent re-run does not log again", async () => {
+    const { t, adminId } = await arrangeWithEntry();
+    const first = await t
+      .withIdentity({ subject: adminId as unknown as string })
+      .mutation(api.prizeDraw.runDraw, {
+        drawName: "first-run",
+        seed: "0".repeat(64),
+      });
+    expect(first.alreadyRun).toBe(false);
+
+    const second = await t
+      .withIdentity({ subject: adminId as unknown as string })
+      .mutation(api.prizeDraw.runDraw, {
+        drawName: "first-run",
+        seed: "1".repeat(64),
+      });
+    expect(second.alreadyRun).toBe(true);
+
+    const log = await t.run((ctx) => ctx.db.query("adminAuditLog").collect());
+    expect(log).toHaveLength(1);
+    expect(log[0]?.action).toBe("prizeDraw.run");
+    expect(log[0]?.actorEmail).toBe("draw-runner@bwf.org");
   });
 });
