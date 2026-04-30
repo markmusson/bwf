@@ -1,6 +1,8 @@
 import { ConvexAuthNextjsServerProvider } from "@convex-dev/auth/nextjs/server";
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+import { BrandFooter } from "./components/BrandFooter";
+import { BrandHeader } from "./components/BrandHeader";
 import { Providers } from "./providers";
 import "./globals.css";
 
@@ -30,9 +32,13 @@ export default function RootLayout({
       lang="en"
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
-      <body className="flex min-h-full flex-col">
+      <body className="bg-bwf-deep flex min-h-full flex-col text-white">
         <ConvexAuthNextjsServerProvider>
-          <Providers>{children}</Providers>
+          <Providers>
+            <BrandHeader />
+            <main className="flex-1">{children}</main>
+            <BrandFooter />
+          </Providers>
         </ConvexAuthNextjsServerProvider>
       </body>
     </html>
