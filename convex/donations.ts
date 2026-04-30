@@ -1,8 +1,10 @@
 import { ConvexError, v } from "convex/values";
 import { getAuthUserId } from "@convex-dev/auth/server";
+import { internal } from "./_generated/api";
 import type { Id } from "./_generated/dataModel";
 import {
   internalMutation,
+  internalQuery,
   query,
   type MutationCtx,
 } from "./_generated/server";
@@ -234,7 +236,32 @@ export const markPaid = internalMutation({
     paymentIntentId: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    return await _markPaidForTest(ctx, args);
+    const result = await _markPaidForTest(ctx, args);
+    // Schedule the receipt email after the transaction commits. The
+    // action checks receiptSentAt and bails on second invocation, so a
+    // webhook replay won't double-send.
+    if (result.donationId && !result.alreadyPaid) {
+      await ctx.scheduler.runAfter(0, internal.email.sendReceipt, {
+        donationId: result.donationId,
+      });
+    }
+    return result;
+  },
+});
+
+// Internal — used by the receipt email action to look up the donation.
+export const getByIdInternal = internalQuery({
+  args: { donationId: v.id("donations") },
+  handler: async (ctx, { donationId }) => {
+    return await ctx.db.get(donationId);
+  },
+});
+
+// Internal — flag a donation's receipt as sent. Idempotent set.
+export const markReceiptSent = internalMutation({
+  args: { donationId: v.id("donations") },
+  handler: async (ctx, { donationId }) => {
+    await ctx.db.patch(donationId, { receiptSentAt: Date.now() });
   },
 });
 

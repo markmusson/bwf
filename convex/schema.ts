@@ -69,6 +69,7 @@ export default defineSchema({
       v.literal("paid"),
       v.literal("failed"),
     ),
+    receiptSentAt: v.optional(v.number()),
   })
     .index("by_session", ["stripeSessionId"])
     .index("by_user", ["userId"])

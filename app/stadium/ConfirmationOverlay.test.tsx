@@ -132,9 +132,7 @@ describe("ConfirmationOverlay", () => {
     await user.click(screen.getByTestId("prize-optin-button"));
 
     expect(optIn).toHaveBeenCalledWith({ donationId: PAID_DONATION._id });
-    expect(
-      await screen.findByText(/You're entered/i),
-    ).toBeInTheDocument();
+    expect(await screen.findByText(/You're entered/i)).toBeInTheDocument();
   });
 
   it("surfaces an error when optIn rejects", async () => {
