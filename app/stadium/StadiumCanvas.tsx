@@ -1,8 +1,11 @@
 "use client";
 
-import { useQuery } from "convex/react";
-import { useEffect, useMemo, useRef } from "react";
+import { useConvexAuth, useMutation, useQuery } from "convex/react";
+import { ConvexError } from "convex/values";
+import { useRouter } from "next/navigation";
+import { useEffect, useMemo, useRef, useState, type MouseEvent } from "react";
 import { api } from "@/convex/_generated/api";
+import type { Id } from "@/convex/_generated/dataModel";
 import {
   buildAllSeats,
   CENTER_X,
@@ -26,6 +29,7 @@ function drawStadium(
   ctx: CanvasRenderingContext2D,
   layout: readonly Seat[],
   statusByKey: ReadonlyMap<string, SeatStatus>,
+  selected: Seat | null,
   scale: number,
   dpr: number,
 ) {
@@ -34,7 +38,6 @@ function drawStadium(
   ctx.fillStyle = "#001b3d";
   ctx.fillRect(0, 0, STADIUM_WIDTH, STADIUM_HEIGHT);
 
-  // Pitch oval — sketchy but enough to anchor the eye.
   ctx.fillStyle = "#0c4a2a";
   ctx.beginPath();
   ctx.ellipse(CENTER_X, CENTER_Y, 110, 95, 0, 0, Math.PI * 2);
@@ -43,7 +46,6 @@ function drawStadium(
   ctx.lineWidth = 1;
   ctx.stroke();
 
-  // Stand bands — a translucent ring per stand to anchor the seat clusters.
   for (const stand of STANDS) {
     const a1 = vToRad(stand.vStart);
     let a2 = vToRad(stand.vEnd);
@@ -58,7 +60,6 @@ function drawStadium(
     ctx.fill();
   }
 
-  // Seats.
   for (const seat of layout) {
     const status =
       statusByKey.get(statusKey(seat.standId, seat.rowIndex, seat.colIndex)) ??
@@ -69,13 +70,58 @@ function drawStadium(
     ctx.fill();
   }
 
+  if (selected) {
+    ctx.beginPath();
+    ctx.arc(selected.x, selected.y, SEAT_RADIUS + 3, 0, Math.PI * 2);
+    ctx.strokeStyle = "#ffffff";
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+  }
+
   ctx.restore();
+}
+
+const HIT_RADIUS = SEAT_RADIUS * 2.5;
+
+function findSeatAt(
+  layout: readonly Seat[],
+  x: number,
+  y: number,
+): Seat | null {
+  let best: { seat: Seat; dist: number } | null = null;
+  for (const seat of layout) {
+    const dist = Math.hypot(seat.x - x, seat.y - y);
+    if (!best || dist < best.dist) best = { seat, dist };
+  }
+  return best && best.dist <= HIT_RADIUS ? best.seat : null;
+}
+
+function describeSeat(seat: Seat): string {
+  const stand = STANDS.find((s) => s.id === seat.standId);
+  const standName = stand?.name ?? seat.standId;
+  return `${standName}, row ${seat.rowIndex + 1}, seat ${seat.colIndex + 1}`;
+}
+
+function errorMessage(error: unknown): string {
+  if (error instanceof ConvexError) {
+    const data: unknown = error.data;
+    if (data === "seat_held")
+      return "Someone else is taking that seat right now.";
+    if (data === "seat_unavailable") return "That seat has just been claimed.";
+    if (data === "unauthenticated") return "Sign in first.";
+    if (typeof data === "string") return data;
+  }
+  if (error instanceof Error) return error.message;
+  return "Couldn't take that seat.";
 }
 
 export function StadiumCanvas() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const wrapRef = useRef<HTMLDivElement>(null);
   const seatRows = useQuery(api.seats.list);
+  const claimSeat = useMutation(api.holds.claim);
+  const { isAuthenticated, isLoading: authLoading } = useConvexAuth();
+  const router = useRouter();
 
   const layout = useMemo(() => buildAllSeats(STANDS), []);
 
@@ -86,6 +132,18 @@ export function StadiumCanvas() {
     }
     return map;
   }, [seatRows]);
+
+  const idByKey = useMemo(() => {
+    const map = new Map<string, Id<"seats">>();
+    for (const seat of seatRows ?? []) {
+      map.set(statusKey(seat.stand, seat.row, seat.num), seat._id);
+    }
+    return map;
+  }, [seatRows]);
+
+  const [selected, setSelected] = useState<Seat | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -102,13 +160,52 @@ export function StadiumCanvas() {
       canvas.height = Math.round(STADIUM_HEIGHT * scale * dpr);
       canvas.style.width = `${w}px`;
       canvas.style.height = `${Math.round(STADIUM_HEIGHT * scale)}px`;
-      drawStadium(ctx, layout, statusByKey, scale, dpr);
+      drawStadium(ctx, layout, statusByKey, selected, scale, dpr);
     };
 
     draw();
     window.addEventListener("resize", draw);
     return () => window.removeEventListener("resize", draw);
-  }, [layout, statusByKey]);
+  }, [layout, statusByKey, selected]);
+
+  const onCanvasClick = (event: MouseEvent<HTMLCanvasElement>) => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const rect = canvas.getBoundingClientRect();
+    const scale = rect.width / STADIUM_WIDTH;
+    if (scale <= 0) return;
+    const x = (event.clientX - rect.left) / scale;
+    const y = (event.clientY - rect.top) / scale;
+    const hit = findSeatAt(layout, x, y);
+    setSelected(hit);
+    if (hit) setError(null);
+  };
+
+  const takeSeat = async () => {
+    if (!selected) return;
+    if (!isAuthenticated) {
+      router.push("/signin");
+      return;
+    }
+    const seatId = idByKey.get(
+      statusKey(selected.standId, selected.rowIndex, selected.colIndex),
+    );
+    if (!seatId) {
+      setError("Seats are still loading. Try again in a moment.");
+      return;
+    }
+
+    setSubmitting(true);
+    setError(null);
+    try {
+      await claimSeat({ seatId });
+      router.push("/donate");
+    } catch (err) {
+      setError(errorMessage(err));
+    } finally {
+      setSubmitting(false);
+    }
+  };
 
   const loading = seatRows === undefined;
   const seatCount = seatRows?.length ?? 0;
@@ -129,13 +226,49 @@ export function StadiumCanvas() {
             : `${seatCount.toLocaleString("en-GB")} seats in play.`}
         </p>
       </header>
+
       <div ref={wrapRef} className="w-full max-w-3xl">
         <canvas
           ref={canvasRef}
-          aria-label="Edgbaston seat map"
+          onClick={onCanvasClick}
+          aria-label="Edgbaston seat map. Click a seat to select it."
           role="img"
-          className="block h-auto w-full rounded-2xl"
+          className="block h-auto w-full cursor-pointer rounded-2xl"
         />
+      </div>
+
+      <div
+        aria-live="polite"
+        className="ring-bwf-blue/30 flex w-full max-w-3xl flex-col gap-3 rounded-xl bg-white/5 p-4 ring-1"
+      >
+        {selected ? (
+          <>
+            <p className="text-sm" data-testid="selected-seat-readout">
+              Selected: <strong>{describeSeat(selected)}</strong>
+            </p>
+            <button
+              type="button"
+              onClick={takeSeat}
+              disabled={submitting || authLoading}
+              className="bg-bwf-blue hover:bg-bwf-accent self-start rounded-full px-5 py-2 text-sm font-medium text-white transition-colors disabled:opacity-50"
+            >
+              {submitting
+                ? "Taking your seat…"
+                : isAuthenticated
+                  ? "Take this seat"
+                  : "Sign in to take this seat"}
+            </button>
+          </>
+        ) : (
+          <p className="text-sm text-white/60">
+            Click a seat on the map to select it.
+          </p>
+        )}
+        {error ? (
+          <p role="alert" className="text-sm text-amber-300">
+            {error}
+          </p>
+        ) : null}
       </div>
     </div>
   );
