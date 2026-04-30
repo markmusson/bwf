@@ -5,6 +5,7 @@ import type { Id } from "./_generated/dataModel";
 import {
   internalMutation,
   internalQuery,
+  mutation,
   query,
   type MutationCtx,
 } from "./_generated/server";
@@ -262,6 +263,82 @@ export const markReceiptSent = internalMutation({
   args: { donationId: v.id("donations") },
   handler: async (ctx, { donationId }) => {
     await ctx.db.patch(donationId, { receiptSentAt: Date.now() });
+  },
+});
+
+// Public — donor's own paid donations + linked tribute + seat
+// coordinate. Used by /manage to show what they've claimed.
+export const listMine = query({
+  args: {},
+  handler: async (ctx) => {
+    const userId = await getAuthUserId(ctx);
+    if (!userId) return [];
+
+    const donations = await ctx.db
+      .query("donations")
+      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .order("desc")
+      .take(50);
+
+    const result: Array<{
+      donation: (typeof donations)[number];
+      tribute: { _id: Id<"tributes">; text: string; status: string } | null;
+      seat: { stand: string; row: number; num: number } | null;
+    }> = [];
+
+    for (const donation of donations) {
+      const tribute = await ctx.db
+        .query("tributes")
+        .withIndex("by_status")
+        .filter((q) => q.eq(q.field("donationId"), donation._id))
+        .first();
+      const seat = donation.seatId ? await ctx.db.get(donation.seatId) : null;
+      result.push({
+        donation,
+        tribute: tribute
+          ? { _id: tribute._id, text: tribute.text, status: tribute.status }
+          : null,
+        seat: seat ? { stand: seat.stand, row: seat.row, num: seat.num } : null,
+      });
+    }
+
+    return result;
+  },
+});
+
+// Public — donor edits their own donation. Auth + ownership enforced;
+// status / amount / stripe ids stay immutable.
+export const update = mutation({
+  args: {
+    donationId: v.id("donations"),
+    displayName: v.optional(v.string()),
+    hideName: v.optional(v.boolean()),
+    hideAmount: v.optional(v.boolean()),
+    avatarConfig: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    const userId = await getAuthUserId(ctx);
+    if (!userId) throw new ConvexError("unauthenticated");
+
+    const donation = await ctx.db.get(args.donationId);
+    if (!donation) throw new ConvexError("not_found");
+    if (donation.userId !== userId) throw new ConvexError("forbidden");
+
+    const patch: {
+      displayName?: string;
+      hideName?: boolean;
+      hideAmount?: boolean;
+      avatarConfig?: string;
+    } = {};
+    if (args.displayName !== undefined) patch.displayName = args.displayName;
+    if (args.hideName !== undefined) patch.hideName = args.hideName;
+    if (args.hideAmount !== undefined) patch.hideAmount = args.hideAmount;
+    if (args.avatarConfig !== undefined) patch.avatarConfig = args.avatarConfig;
+
+    if (Object.keys(patch).length > 0) {
+      await ctx.db.patch(args.donationId, patch);
+    }
+    return null;
   },
 });
 
