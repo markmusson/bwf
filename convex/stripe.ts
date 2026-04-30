@@ -93,13 +93,9 @@ export const createSession = action({
     }
 
     const stripe = getStripe();
-    // The Stripe Node SDK 22 types narrow ui_mode to a renamed enum
-    // that doesn't include "embedded", but the live REST API still
-    // accepts "embedded" for Embedded Checkout. Casting until upstream
-    // catches up.
-    const sessionParams = {
-      mode: "payment" as const,
-      ui_mode: "embedded",
+    const session = await stripe.checkout.sessions.create({
+      mode: "payment",
+      ui_mode: "embedded_page",
       payment_method_types: ["card"],
       currency: "gbp",
       line_items: [
@@ -113,9 +109,7 @@ export const createSession = action({
         },
       ],
       return_url: getReturnUrl(),
-    } as unknown as Stripe.Checkout.SessionCreateParams;
-
-    const session = await stripe.checkout.sessions.create(sessionParams);
+    });
 
     if (!session.id || !session.client_secret) {
       throw new ConvexError("stripe_session_failed");
