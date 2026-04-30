@@ -1,6 +1,11 @@
 import { ConvexError, v } from "convex/values";
+import { getAuthUserId } from "@convex-dev/auth/server";
 import type { Id } from "./_generated/dataModel";
-import { internalMutation, query, type MutationCtx } from "./_generated/server";
+import {
+  internalMutation,
+  query,
+  type MutationCtx,
+} from "./_generated/server";
 
 const MIN_DONATION_PENCE = 1000;
 
@@ -119,14 +124,24 @@ export const createDraft = internalMutation({
 });
 
 // Public — read on the success page, keyed by Stripe session id from
-// the return URL.
+// the return URL. Auth-gated: returns the full donation only to the
+// donor who created it. Other callers (or anonymous) get null.
+//
+// This stops a leaked session_id (browser history, screenshots,
+// referrer headers) from exposing the donor's name + Gift Aid status
+// + amount + tribute references to a third party.
 export const getBySession = query({
   args: { stripeSessionId: v.string() },
   handler: async (ctx, { stripeSessionId }) => {
+    const userId = await getAuthUserId(ctx);
+    if (!userId) return null;
+
     const donation = await ctx.db
       .query("donations")
       .withIndex("by_session", (q) => q.eq("stripeSessionId", stripeSessionId))
       .first();
+    if (!donation) return null;
+    if (donation.userId !== userId) return null;
     return donation;
   },
 });
