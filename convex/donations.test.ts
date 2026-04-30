@@ -67,9 +67,23 @@ describe("donations.createDraft", () => {
 
     expect(result.tributeId).not.toBeNull();
     const tribute = await t.run((ctx) => ctx.db.get(result.tributeId!));
-    expect(tribute?.status).toBe("pending");
+    // "For Bob." is clean — auto-approved by the inline profanity filter.
+    expect(tribute?.status).toBe("approved");
     expect(tribute?.text).toBe("For Bob.");
     expect(tribute?.donationId).toBe(result.donationId);
+  });
+
+  test("quarantines a tribute that hits the profanity filter", async () => {
+    const { t, seatId, userId } = await setup();
+    const result = await t.run((ctx) =>
+      _createDraftForTest(
+        ctx,
+        baseArgs({ userId, seatId, tributeText: "this is fucking bad" }),
+      ),
+    );
+    const tribute = await t.run((ctx) => ctx.db.get(result.tributeId!));
+    expect(tribute?.status).toBe("pending");
+    expect(tribute?.profanityScore).toBeGreaterThan(0);
   });
 
   test("skips tribute creation when no text supplied", async () => {

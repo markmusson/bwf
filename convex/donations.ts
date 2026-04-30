@@ -1,5 +1,6 @@
 import { ConvexError, v } from "convex/values";
 import { getAuthUserId } from "@convex-dev/auth/server";
+import { moderateTribute } from "../lib/moderation";
 import { internal } from "./_generated/api";
 import type { Id } from "./_generated/dataModel";
 import {
@@ -92,10 +93,16 @@ export async function _createDraftForTest(
 
   let tributeId: Id<"tributes"> | null = null;
   if (args.tributeText && args.tributeText.trim().length > 0) {
+    const trimmed = args.tributeText.trim();
+    const moderation = moderateTribute(trimmed);
     tributeId = await ctx.db.insert("tributes", {
       donationId,
-      text: args.tributeText.trim(),
-      status: "pending" as const,
+      text: trimmed,
+      status:
+        moderation.decision === "approve"
+          ? ("approved" as const)
+          : ("pending" as const),
+      profanityScore: moderation.score,
     });
   }
 

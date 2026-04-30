@@ -1,5 +1,6 @@
 import { ConvexError, v } from "convex/values";
 import { getAuthUserId } from "@convex-dev/auth/server";
+import { moderateTribute } from "../lib/moderation";
 import type { Id } from "./_generated/dataModel";
 import { mutation, type MutationCtx } from "./_generated/server";
 
@@ -33,11 +34,17 @@ export async function _updateForTest(
     .filter((q) => q.eq(q.field("donationId"), args.donationId))
     .first();
 
+  const moderation = moderateTribute(trimmed);
+  const status =
+    moderation.decision === "approve"
+      ? ("approved" as const)
+      : ("pending" as const);
+
   if (existing) {
     await ctx.db.patch(existing._id, {
       text: trimmed,
-      status: "pending" as const,
-      profanityScore: undefined,
+      status,
+      profanityScore: moderation.score,
     });
     return { tributeId: existing._id };
   }
@@ -49,7 +56,8 @@ export async function _updateForTest(
   const tributeId = await ctx.db.insert("tributes", {
     donationId: args.donationId,
     text: trimmed,
-    status: "pending" as const,
+    status,
+    profanityScore: moderation.score,
   });
   return { tributeId };
 }

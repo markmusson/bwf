@@ -27,17 +27,31 @@ async function setup() {
 }
 
 describe("tributes.update", () => {
-  test("creates a new tribute when none exists", async () => {
+  test("creates a new tribute and auto-approves clean text", async () => {
     const { t, userId, donationId } = await setup();
     const result = await t.run((ctx) =>
       _updateForTest(ctx, { userId, donationId, text: "For Bob." }),
     );
     const tribute = await t.run((ctx) => ctx.db.get(result.tributeId));
     expect(tribute?.text).toBe("For Bob.");
-    expect(tribute?.status).toBe("pending");
+    expect(tribute?.status).toBe("approved");
   });
 
-  test("re-flips an existing approved tribute back to pending on edit", async () => {
+  test("quarantines a tribute that hits the profanity filter", async () => {
+    const { t, userId, donationId } = await setup();
+    const result = await t.run((ctx) =>
+      _updateForTest(ctx, {
+        userId,
+        donationId,
+        text: "this is fucking bad",
+      }),
+    );
+    const tribute = await t.run((ctx) => ctx.db.get(result.tributeId));
+    expect(tribute?.status).toBe("pending");
+    expect(tribute?.profanityScore).toBeGreaterThan(0);
+  });
+
+  test("re-checks an existing tribute on edit; clean edit goes back to approved", async () => {
     const { t, userId, donationId } = await setup();
     const tributeId = await t.run((ctx) =>
       ctx.db.insert("tributes", {
@@ -47,10 +61,30 @@ describe("tributes.update", () => {
       }),
     );
     await t.run((ctx) =>
-      _updateForTest(ctx, { userId, donationId, text: "Edited" }),
+      _updateForTest(ctx, { userId, donationId, text: "Edited but clean" }),
     );
     const tribute = await t.run((ctx) => ctx.db.get(tributeId));
-    expect(tribute?.text).toBe("Edited");
+    expect(tribute?.text).toBe("Edited but clean");
+    expect(tribute?.status).toBe("approved");
+  });
+
+  test("re-checks an existing tribute on edit; dirty edit drops to pending", async () => {
+    const { t, userId, donationId } = await setup();
+    const tributeId = await t.run((ctx) =>
+      ctx.db.insert("tributes", {
+        donationId,
+        text: "First version",
+        status: "approved" as const,
+      }),
+    );
+    await t.run((ctx) =>
+      _updateForTest(ctx, {
+        userId,
+        donationId,
+        text: "this is fucking bad",
+      }),
+    );
+    const tribute = await t.run((ctx) => ctx.db.get(tributeId));
     expect(tribute?.status).toBe("pending");
   });
 
