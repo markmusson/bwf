@@ -4,7 +4,12 @@
 import { convexTest } from "convex-test";
 import { afterEach, beforeEach, describe, expect, test } from "vitest";
 import { api } from "./_generated/api";
-import { _optInForTest, _runDrawForTest, pickWinnerIndex } from "./prizeDraw";
+import {
+  _addPostalEntryForTest,
+  _optInForTest,
+  _runDrawForTest,
+  pickWinnerIndex,
+} from "./prizeDraw";
 import schema from "./schema";
 
 const modules = import.meta.glob("./**/*.ts");
@@ -160,7 +165,9 @@ describe("prizeDraw.runDraw", () => {
       }),
     );
     expect(result.entryCount).toBe(5);
-    expect(result.winnerEntryId).toBe(entries[0]!.id);
+    expect(result.winnerType).toBe("online");
+    expect(result.winnerOnlineEntryId).toBe(entries[0]!.id);
+    expect(result.winnerEntryRef).toBe(`online:${entries[0]!.id}`);
   });
 
   test("is idempotent — re-running with the same drawName returns the same record", async () => {
@@ -182,7 +189,7 @@ describe("prizeDraw.runDraw", () => {
     expect(second.drawId).toBe(first.drawId);
     expect(second.alreadyRun).toBe(true);
     expect(second.seed).toBe(first.seed);
-    expect(second.winnerEntryId).toBe(first.winnerEntryId);
+    expect(second.winnerEntryRef).toBe(first.winnerEntryRef);
     const draws = await t.run((ctx) => ctx.db.query("prizeDraws").collect());
     expect(draws).toHaveLength(1);
   });
@@ -196,7 +203,7 @@ describe("prizeDraw.runDraw", () => {
         runByUserId: admins[0]!.id as never,
       }),
     );
-    const sorted = entries.map((e) => e.id).sort();
+    const sorted = entries.map((e) => `online:${e.id}`).sort();
     expect(result.entryIds).toEqual(sorted);
   });
 
@@ -294,5 +301,77 @@ describe("prizeDraw.runDraw (public mutation, admin-gated)", () => {
     expect(log).toHaveLength(1);
     expect(log[0]?.action).toBe("prizeDraw.run");
     expect(log[0]?.actorEmail).toBe("draw-runner@bwf.org");
+  });
+});
+
+describe("prizeDraw postal entries", () => {
+  test("rejects a blank name", async () => {
+    const t = convexTest(schema, modules);
+    const userId = await t.run((ctx) => ctx.db.insert("users", {}));
+    await expect(
+      t.run((ctx) =>
+        _addPostalEntryForTest(ctx, {
+          name: "   ",
+          address: "1 BWF Road",
+          enteredByUserId: userId,
+        }),
+      ),
+    ).rejects.toMatchObject({ data: "postal_name_required" });
+  });
+
+  test("rejects a blank address", async () => {
+    const t = convexTest(schema, modules);
+    const userId = await t.run((ctx) => ctx.db.insert("users", {}));
+    await expect(
+      t.run((ctx) =>
+        _addPostalEntryForTest(ctx, {
+          name: "Sarah W.",
+          address: "",
+          enteredByUserId: userId,
+        }),
+      ),
+    ).rejects.toMatchObject({ data: "postal_address_required" });
+  });
+
+  test("inserts a postal entry with trimmed fields and admin actor", async () => {
+    const t = convexTest(schema, modules);
+    const userId = await t.run((ctx) => ctx.db.insert("users", {}));
+    const result = await t.run((ctx) =>
+      _addPostalEntryForTest(ctx, {
+        name: "  Sarah W.  ",
+        address: "1 BWF Road, Birmingham B5 7QU",
+        enteredByUserId: userId,
+      }),
+    );
+    const row = await t.run((ctx) => ctx.db.get(result.postalEntryId));
+    expect(row?.name).toBe("Sarah W.");
+    expect(row?.enteredByUserId).toBe(userId);
+  });
+
+  test("runDraw includes postal entries in the snapshot and can pick one as winner", async () => {
+    const t = convexTest(schema, modules);
+    const adminId = await t.run((ctx) => ctx.db.insert("users", {}));
+    const postalId = await t.run((ctx) =>
+      ctx.db.insert("postalEntries", {
+        name: "Sarah W.",
+        address: "1 BWF Road",
+        receivedAt: Date.now(),
+        enteredByUserId: adminId,
+      }),
+    );
+
+    const result = await t.run((ctx) =>
+      _runDrawForTest(ctx, {
+        drawName: "postal-only",
+        seed: "0".repeat(64),
+        runByUserId: adminId,
+      }),
+    );
+    expect(result.entryCount).toBe(1);
+    expect(result.winnerType).toBe("postal");
+    expect(result.winnerPostalEntryId).toBe(postalId);
+    expect(result.winnerOnlineEntryId).toBeNull();
+    expect(result.winnerDonationId).toBeNull();
+    expect(result.entryIds[0]).toBe(`postal:${postalId}`);
   });
 });

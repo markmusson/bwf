@@ -95,6 +95,12 @@ export function AdminDashboard() {
         >
           Gift Aid export
         </Link>
+        <Link
+          href="/admin/postal"
+          className="bg-bwf-pale text-bwf-navy font-display rounded-full px-5 py-2 text-sm tracking-wider uppercase"
+        >
+          Postal entries
+        </Link>
       </nav>
 
       <section className="flex flex-col gap-2">

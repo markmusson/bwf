@@ -117,10 +117,16 @@ export interface RunDrawResult {
   drawName: string;
   seed: string;
   entryCount: number;
-  entryIds: Id<"prizeEntries">[];
-  winnerEntryId: Id<"prizeEntries">;
-  winnerDonationId: Id<"donations">;
+  entryIds: string[];
+  winnerType: "online" | "postal";
+  winnerEntryRef: string;
+  winnerOnlineEntryId: Id<"prizeEntries"> | null;
+  winnerPostalEntryId: Id<"postalEntries"> | null;
+  winnerDonationId: Id<"donations"> | null;
 }
+
+const ONLINE_PREFIX = "online:";
+const POSTAL_PREFIX = "postal:";
 
 export async function _runDrawForTest(
   ctx: MutationCtx,
@@ -138,32 +144,58 @@ export async function _runDrawForTest(
       seed: existing.seed,
       entryCount: existing.entryCount,
       entryIds: existing.entryIds,
-      winnerEntryId: existing.winnerEntryId,
-      winnerDonationId: existing.winnerDonationId,
+      winnerType: existing.winnerType,
+      winnerEntryRef: existing.winnerEntryRef,
+      winnerOnlineEntryId: existing.winnerOnlineEntryId ?? null,
+      winnerPostalEntryId: existing.winnerPostalEntryId ?? null,
+      winnerDonationId: existing.winnerDonationId ?? null,
     };
   }
 
-  const entries = await ctx.db.query("prizeEntries").collect();
-  if (entries.length === 0) {
+  const onlineEntries = await ctx.db.query("prizeEntries").collect();
+  const postalEntries = await ctx.db.query("postalEntries").collect();
+  const total = onlineEntries.length + postalEntries.length;
+  if (total === 0) {
     throw new ConvexError("no_entries");
   }
 
-  const sorted = entries
-    .map((e) => e._id)
-    .sort((a, b) => (a < b ? -1 : a > b ? 1 : 0));
+  const refs: string[] = [
+    ...onlineEntries.map((e) => `${ONLINE_PREFIX}${e._id}`),
+    ...postalEntries.map((e) => `${POSTAL_PREFIX}${e._id}`),
+  ];
+  refs.sort();
 
   const seed = args.seed ?? generateSeed();
-  const winnerIndex = pickWinnerIndex(seed, sorted.length);
-  const winnerEntryId = sorted[winnerIndex]!;
-  const winnerEntry = entries.find((e) => e._id === winnerEntryId)!;
+  const winnerIndex = pickWinnerIndex(seed, refs.length);
+  const winnerRef = refs[winnerIndex]!;
+
+  const isPostal = winnerRef.startsWith(POSTAL_PREFIX);
+  const winnerType: "online" | "postal" = isPostal ? "postal" : "online";
+  const rawId = winnerRef.slice(
+    (isPostal ? POSTAL_PREFIX : ONLINE_PREFIX).length,
+  );
+
+  let winnerOnlineEntryId: Id<"prizeEntries"> | null = null;
+  let winnerPostalEntryId: Id<"postalEntries"> | null = null;
+  let winnerDonationId: Id<"donations"> | null = null;
+  if (isPostal) {
+    winnerPostalEntryId = rawId as Id<"postalEntries">;
+  } else {
+    winnerOnlineEntryId = rawId as Id<"prizeEntries">;
+    const winnerOnline = onlineEntries.find((e) => e._id === rawId);
+    winnerDonationId = winnerOnline?.donationId ?? null;
+  }
 
   const drawId = await ctx.db.insert("prizeDraws", {
     drawName: args.drawName,
     seed,
-    entryCount: sorted.length,
-    entryIds: sorted,
-    winnerEntryId,
-    winnerDonationId: winnerEntry.donationId,
+    entryCount: refs.length,
+    entryIds: refs,
+    winnerType,
+    winnerEntryRef: winnerRef,
+    winnerOnlineEntryId: winnerOnlineEntryId ?? undefined,
+    winnerPostalEntryId: winnerPostalEntryId ?? undefined,
+    winnerDonationId: winnerDonationId ?? undefined,
     runByUserId: args.runByUserId,
   });
 
@@ -172,12 +204,80 @@ export async function _runDrawForTest(
     alreadyRun: false,
     drawName: args.drawName,
     seed,
-    entryCount: sorted.length,
-    entryIds: sorted,
-    winnerEntryId,
-    winnerDonationId: winnerEntry.donationId,
+    entryCount: refs.length,
+    entryIds: refs,
+    winnerType,
+    winnerEntryRef: winnerRef,
+    winnerOnlineEntryId,
+    winnerPostalEntryId,
+    winnerDonationId,
   };
 }
+
+// Admin-keyed postal entry. UK Gambling Commission requires a free
+// postal route for charity prize draws; this is the only ingest path.
+export interface AddPostalEntryArgs {
+  name: string;
+  address: string;
+  enteredByUserId: Id<"users">;
+}
+
+export async function _addPostalEntryForTest(
+  ctx: MutationCtx,
+  args: AddPostalEntryArgs,
+): Promise<{ postalEntryId: Id<"postalEntries"> }> {
+  const name = args.name.trim();
+  const address = args.address.trim();
+  if (name.length === 0) throw new ConvexError("postal_name_required");
+  if (address.length === 0) throw new ConvexError("postal_address_required");
+  if (name.length > 200) throw new ConvexError("postal_name_too_long");
+  if (address.length > 1000) throw new ConvexError("postal_address_too_long");
+
+  const id = await ctx.db.insert("postalEntries", {
+    name,
+    address,
+    receivedAt: Date.now(),
+    enteredByUserId: args.enteredByUserId,
+  });
+  return { postalEntryId: id };
+}
+
+export const adminAddPostalEntry = mutation({
+  args: { name: v.string(), address: v.string() },
+  handler: async (ctx, { name, address }) => {
+    const admin = await requireAdmin(ctx);
+    const result = await _addPostalEntryForTest(ctx, {
+      name,
+      address,
+      enteredByUserId: admin.userId,
+    });
+    await logAdminAction(ctx, admin, {
+      action: "postalEntry.add",
+      targetType: "postalEntry",
+      targetId: result.postalEntryId,
+      metadata: { name },
+    });
+    return result;
+  },
+});
+
+export const adminListPostalEntries = query({
+  args: {},
+  handler: async (ctx) => {
+    await requireAdmin(ctx);
+    const rows = await ctx.db
+      .query("postalEntries")
+      .withIndex("by_received")
+      .order("desc")
+      .take(500);
+    return rows.map((r) => ({
+      postalEntryId: r._id,
+      name: r.name,
+      address: r.address,
+      receivedAt: r.receivedAt,
+    }));
+  },
+});
 
 export const runDraw = mutation({
   args: {
@@ -199,7 +299,8 @@ export const runDraw = mutation({
         metadata: {
           drawName: result.drawName,
           entryCount: result.entryCount,
-          winnerEntryId: result.winnerEntryId,
+          winnerType: result.winnerType,
+          winnerEntryRef: result.winnerEntryRef,
         },
       });
     }

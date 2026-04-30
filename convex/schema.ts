@@ -82,6 +82,17 @@ export default defineSchema({
     address: v.optional(v.string()),
   }).index("by_donation", ["donationId"]),
 
+  // Free postal entries — UK Gambling Commission requires a no-purchase
+  // route for charity prize draws. Admin keys these in from postal mail
+  // received at the BWF address. Counted equally with online entries
+  // when runDraw snapshots the entry list.
+  postalEntries: defineTable({
+    name: v.string(),
+    address: v.string(),
+    receivedAt: v.number(),
+    enteredByUserId: v.id("users"),
+  }).index("by_received", ["receivedAt"]),
+
   stripeEvents: defineTable({
     eventId: v.string(),
     receivedAt: v.number(),
@@ -115,14 +126,19 @@ export default defineSchema({
   // Audit record for the prize draw. drawName is the idempotency key —
   // re-running with the same name returns the original record. seed +
   // entryIds + the published algorithm let any third party replay the
-  // draw and verify the winner.
+  // draw and verify the winner. entryIds use a tagged-string format
+  // ("online:<id>" or "postal:<id>") so the union of online and free
+  // postal entries can be captured in one ordered list.
   prizeDraws: defineTable({
     drawName: v.string(),
     seed: v.string(),
     entryCount: v.number(),
-    entryIds: v.array(v.id("prizeEntries")),
-    winnerEntryId: v.id("prizeEntries"),
-    winnerDonationId: v.id("donations"),
+    entryIds: v.array(v.string()),
+    winnerType: v.union(v.literal("online"), v.literal("postal")),
+    winnerEntryRef: v.string(),
+    winnerOnlineEntryId: v.optional(v.id("prizeEntries")),
+    winnerPostalEntryId: v.optional(v.id("postalEntries")),
+    winnerDonationId: v.optional(v.id("donations")),
     runByUserId: v.id("users"),
   }).index("by_name", ["drawName"]),
 });
