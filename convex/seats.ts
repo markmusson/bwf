@@ -68,6 +68,56 @@ export const count = query({
   },
 });
 
+// Public read for /seat/[id] share cards. Returns a deliberately
+// narrow shape — the donor's display name, amount, and Gift Aid flag
+// are exposed only when the donor has not opted out via hideName /
+// hideAmount, and tributes are only returned once moderation has
+// approved them. Pending donations (paid via webhook race) and
+// non-existent seats both return safely.
+export const getCard = query({
+  args: { seatId: v.id("seats") },
+  handler: async (ctx, { seatId }) => {
+    const seat = await ctx.db.get(seatId);
+    if (!seat) return null;
+
+    const seatPublic = {
+      stand: seat.stand,
+      row: seat.row,
+      num: seat.num,
+      status: seat.status,
+    };
+
+    if (!seat.donationId) {
+      return { seat: seatPublic, donation: null, tribute: null };
+    }
+
+    const donation = await ctx.db.get(seat.donationId);
+    if (!donation || donation.status !== "paid") {
+      return { seat: seatPublic, donation: null, tribute: null };
+    }
+
+    const donationPublic = {
+      displayName: donation.hideName ? null : (donation.displayName ?? null),
+      amountPence: donation.hideAmount ? null : donation.amountPence,
+      giftAid: donation.giftAid,
+    };
+
+    const tribute = await ctx.db
+      .query("tributes")
+      .filter((q) => q.eq(q.field("donationId"), donation._id))
+      .first();
+
+    const tributePublic =
+      tribute && tribute.status === "approved" ? { text: tribute.text } : null;
+
+    return {
+      seat: seatPublic,
+      donation: donationPublic,
+      tribute: tributePublic,
+    };
+  },
+});
+
 // Per-stand totals + taken counts for the legend tile row.
 export const standCounts = query({
   args: {},
