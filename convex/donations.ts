@@ -10,6 +10,7 @@ import {
   query,
   type MutationCtx,
 } from "./_generated/server";
+import { requireAdmin } from "./admin";
 import { consumeRateLimit, RATE_LIMITS } from "./rateLimit";
 
 const MIN_DONATION_PENCE = 1000;
@@ -186,6 +187,46 @@ export const aggregateStats = query({
     }, 0);
 
     return { raisedPence, seatsBlue, supporters, totalSeats };
+  },
+});
+
+// Admin-only Gift Aid export feed. Returns one row per paid donation
+// where giftAid=true. The donor email is read from the auth users
+// table. Display name comes from the donation row. The /admin/exports
+// page formats this into CSV client-side.
+export const giftAidExport = query({
+  args: {},
+  handler: async (ctx) => {
+    await requireAdmin(ctx);
+    const paid = await ctx.db
+      .query("donations")
+      .withIndex("by_status", (q) => q.eq("status", "paid"))
+      .take(5000);
+    const rows: Array<{
+      donationDate: string;
+      email: string | null;
+      displayName: string | null;
+      amountPence: number;
+      upliftPence: number;
+      stripePaymentIntentId: string | null;
+    }> = [];
+    for (const donation of paid) {
+      if (!donation.giftAid) continue;
+      const user = await ctx.db.get(donation.userId);
+      const date = new Date(donation._creationTime);
+      const yyyy = date.getUTCFullYear();
+      const mm = String(date.getUTCMonth() + 1).padStart(2, "0");
+      const dd = String(date.getUTCDate()).padStart(2, "0");
+      rows.push({
+        donationDate: `${yyyy}-${mm}-${dd}`,
+        email: user?.email ?? null,
+        displayName: donation.displayName ?? null,
+        amountPence: donation.amountPence,
+        upliftPence: Math.floor(donation.amountPence / 4),
+        stripePaymentIntentId: donation.stripePaymentIntentId ?? null,
+      });
+    }
+    return rows;
   },
 });
 

@@ -2,7 +2,7 @@
 // @vitest-environment edge-runtime
 
 import { convexTest } from "convex-test";
-import { describe, expect, test } from "vitest";
+import { afterEach, beforeEach, describe, expect, test } from "vitest";
 import { api } from "./_generated/api";
 import {
   _createDraftForTest,
@@ -355,5 +355,88 @@ describe("donations.recordEvent (idempotency)", () => {
 
     const events = await t.run((ctx) => ctx.db.query("stripeEvents").collect());
     expect(events).toHaveLength(1);
+  });
+});
+
+describe("donations.giftAidExport", () => {
+  const originalAdminEmails = process.env.ADMIN_EMAILS;
+
+  beforeEach(() => {
+    process.env.ADMIN_EMAILS = "ops@bwf.org";
+  });
+
+  afterEach(() => {
+    if (originalAdminEmails === undefined) {
+      delete process.env.ADMIN_EMAILS;
+    } else {
+      process.env.ADMIN_EMAILS = originalAdminEmails;
+    }
+  });
+
+  test("rejects non-admin callers", async () => {
+    const t = convexTest(schema, modules);
+    const stranger = await t.run((ctx) =>
+      ctx.db.insert("users", { email: "stranger@example.com" }),
+    );
+    await expect(
+      t
+        .withIdentity({ subject: stranger as unknown as string })
+        .query(api.donations.giftAidExport, {}),
+    ).rejects.toMatchObject({ data: "forbidden" });
+  });
+
+  test("returns only paid + giftAid=true donations", async () => {
+    const t = convexTest(schema, modules);
+    const adminId = await t.run((ctx) =>
+      ctx.db.insert("users", { email: "ops@bwf.org" }),
+    );
+    const donorId = await t.run((ctx) =>
+      ctx.db.insert("users", { email: "donor@example.com" }),
+    );
+    await t.run(async (ctx) => {
+      await ctx.db.insert("donations", {
+        userId: donorId,
+        amountPence: 2500,
+        currency: "GBP" as const,
+        giftAid: true,
+        hideName: false,
+        hideAmount: false,
+        displayName: "Sarah W.",
+        stripeSessionId: "cs_a",
+        stripePaymentIntentId: "pi_a",
+        status: "paid" as const,
+      });
+      await ctx.db.insert("donations", {
+        userId: donorId,
+        amountPence: 1000,
+        currency: "GBP" as const,
+        giftAid: false,
+        hideName: false,
+        hideAmount: false,
+        stripeSessionId: "cs_b",
+        status: "paid" as const,
+      });
+      await ctx.db.insert("donations", {
+        userId: donorId,
+        amountPence: 1000,
+        currency: "GBP" as const,
+        giftAid: true,
+        hideName: false,
+        hideAmount: false,
+        stripeSessionId: "cs_c",
+        status: "pending" as const,
+      });
+    });
+
+    const rows = await t
+      .withIdentity({ subject: adminId as unknown as string })
+      .query(api.donations.giftAidExport, {});
+    expect(rows).toHaveLength(1);
+    expect(rows[0]?.email).toBe("donor@example.com");
+    expect(rows[0]?.displayName).toBe("Sarah W.");
+    expect(rows[0]?.amountPence).toBe(2500);
+    expect(rows[0]?.upliftPence).toBe(625);
+    expect(rows[0]?.stripePaymentIntentId).toBe("pi_a");
+    expect(rows[0]?.donationDate).toMatch(/^\d{4}-\d{2}-\d{2}$/);
   });
 });
