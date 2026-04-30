@@ -1,5 +1,7 @@
 # Setup Checklist — GitHub, Vercel, Supabase, Stripe, Resend
 
+> **Partial supersession.** The Supabase project + RLS sections in `§2` and the deploy steps that referenced Supabase env vars in `§8` are replaced by `07-convex-pivot.md §13`. Convex deployment region is **EU** — set at project creation. Stripe webhook now points at `https://<deployment>.convex.site/stripe/webhook`. Sentry was dropped earlier. Upstash is dropped — Convex's own rate limiter component handles per-user limits if we need them. Everything else (GitHub, Vercel, Stripe, Resend, getaddress.io, the smoke-test card flow) still applies.
+
 Run through this before kicking Claude Code at the codebase. ~90 minutes if everything goes smoothly.
 
 ## 0. Pre-flight (10 min)

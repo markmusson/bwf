@@ -1,5 +1,15 @@
 # Claude Code Build Spec — BWF Virtual Seats
 
+> **Partial supersession.** The data and auth layer moved to Convex on 2026-04-30. `07-convex-pivot.md` replaces:
+> - `§1` row for Database / Auth (Convex + Convex Auth, not Supabase)
+> - `§3` env block (Convex env replaces all `SUPABASE_*` keys)
+> - `§4` SQL schema (Convex schema in `07 §5`)
+> - `§5` API contracts that talked to Supabase (now Convex queries / mutations / actions)
+> - `§8` build sequence (replaced by `07 §14`)
+> - `§13` test strategy where it called for SQL / RLS smoke tests
+>
+> Everything else in this PRD — UX, geometry, copy, Stripe Embedded Checkout client, Resend templates, acceptance criteria, repo layout for `app/` and `lib/` — still applies. Read `04-enthuse-pattern-findings.md` and `07-convex-pivot.md` after this doc.
+
 This is the implementation handoff. Hand the whole `design/` folder to Claude Code along with `blue-for-bob-v4.html` (the visual reference / source for stand geometry). This spec is opinionated; deviate only with reason.
 
 ## 0. Read first
