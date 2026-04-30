@@ -1,8 +1,9 @@
 import { ConvexError, v } from "convex/values";
 import { getAuthUserId } from "@convex-dev/auth/server";
 import { moderateTribute } from "../lib/moderation";
+import { requireAdmin } from "./admin";
 import type { Id } from "./_generated/dataModel";
-import { mutation, type MutationCtx } from "./_generated/server";
+import { mutation, query, type MutationCtx } from "./_generated/server";
 
 const TRIBUTE_MAX_LENGTH = 280;
 
@@ -68,5 +69,72 @@ export const update = mutation({
     const userId = await getAuthUserId(ctx);
     if (!userId) throw new ConvexError("unauthenticated");
     return await _updateForTest(ctx, { ...args, userId });
+  },
+});
+
+// Admin moderation queue. Returns pending and rejected tributes with
+// donation context and the donor's display name. Worst-first by
+// profanityScore so the human sees slurs and spam at the top.
+export const listForModeration = query({
+  args: {},
+  handler: async (ctx) => {
+    await requireAdmin(ctx);
+
+    const pending = await ctx.db
+      .query("tributes")
+      .withIndex("by_status", (q) => q.eq("status", "pending"))
+      .take(200);
+    const rejected = await ctx.db
+      .query("tributes")
+      .withIndex("by_status", (q) => q.eq("status", "rejected"))
+      .take(50);
+
+    const sorted = [...pending, ...rejected].sort(
+      (a, b) => (b.profanityScore ?? 0) - (a.profanityScore ?? 0),
+    );
+
+    const result = [] as Array<{
+      tributeId: Id<"tributes">;
+      donationId: Id<"donations">;
+      text: string;
+      status: string;
+      profanityScore: number;
+      displayName: string | null;
+      seat: { stand: string; row: number; num: number } | null;
+    }>;
+
+    for (const tribute of sorted) {
+      const donation = await ctx.db.get(tribute.donationId);
+      const seat = donation?.seatId ? await ctx.db.get(donation.seatId) : null;
+      result.push({
+        tributeId: tribute._id,
+        donationId: tribute.donationId,
+        text: tribute.text,
+        status: tribute.status,
+        profanityScore: tribute.profanityScore ?? 0,
+        displayName: donation?.displayName ?? null,
+        seat: seat ? { stand: seat.stand, row: seat.row, num: seat.num } : null,
+      });
+    }
+
+    return result;
+  },
+});
+
+export const adminApprove = mutation({
+  args: { tributeId: v.id("tributes") },
+  handler: async (ctx, { tributeId }) => {
+    const admin = await requireAdmin(ctx);
+    await ctx.db.patch(tributeId, { status: "approved" as const });
+    return { approvedBy: admin.email };
+  },
+});
+
+export const adminReject = mutation({
+  args: { tributeId: v.id("tributes") },
+  handler: async (ctx, { tributeId }) => {
+    const admin = await requireAdmin(ctx);
+    await ctx.db.patch(tributeId, { status: "rejected" as const });
+    return { rejectedBy: admin.email };
   },
 });
