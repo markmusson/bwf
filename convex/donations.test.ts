@@ -3,7 +3,12 @@
 
 import { convexTest } from "convex-test";
 import { describe, expect, test } from "vitest";
-import { _createDraftForTest, type CreateDraftArgs } from "./donations";
+import {
+  _createDraftForTest,
+  _markPaidForTest,
+  _recordEventForTest,
+  type CreateDraftArgs,
+} from "./donations";
 import schema from "./schema";
 
 const modules = import.meta.glob("./**/*.ts");
@@ -141,5 +146,130 @@ describe("donations.createDraft", () => {
     await expect(
       t.run((ctx) => _createDraftForTest(ctx, baseArgs({ userId, seatId }))),
     ).rejects.toMatchObject({ data: "hold_expired" });
+  });
+});
+
+describe("donations.markPaid", () => {
+  async function setupDraft() {
+    const { t, seatId, userId } = await setup();
+    const draft = await t.run((ctx) =>
+      _createDraftForTest(
+        ctx,
+        baseArgs({ userId, seatId, tributeText: "For Bob." }),
+      ),
+    );
+    return { t, seatId, userId, donationId: draft.donationId };
+  }
+
+  test("flips donation to paid, marks seat taken, releases the hold", async () => {
+    const { t, seatId, donationId } = await setupDraft();
+
+    const result = await t.run((ctx) =>
+      _markPaidForTest(ctx, {
+        stripeSessionId: "cs_test_123",
+        paymentIntentId: "pi_test_456",
+      }),
+    );
+
+    expect(result).toEqual({ donationId, alreadyPaid: false });
+
+    const donation = await t.run((ctx) => ctx.db.get(donationId));
+    expect(donation?.status).toBe("paid");
+    expect(donation?.stripePaymentIntentId).toBe("pi_test_456");
+
+    const seat = await t.run((ctx) => ctx.db.get(seatId));
+    expect(seat?.status).toBe("taken");
+    expect(seat?.donationId).toBe(donationId);
+
+    const holds = await t.run((ctx) => ctx.db.query("holds").collect());
+    expect(holds).toHaveLength(0);
+  });
+
+  test("second call is a no-op and reports alreadyPaid:true", async () => {
+    const { t, seatId, donationId } = await setupDraft();
+
+    await t.run((ctx) =>
+      _markPaidForTest(ctx, { stripeSessionId: "cs_test_123" }),
+    );
+    const second = await t.run((ctx) =>
+      _markPaidForTest(ctx, {
+        stripeSessionId: "cs_test_123",
+        paymentIntentId: "pi_test_secondary",
+      }),
+    );
+
+    expect(second).toEqual({ donationId, alreadyPaid: true });
+
+    const donation = await t.run((ctx) => ctx.db.get(donationId));
+    // The first call set the payment intent; the second must NOT overwrite.
+    expect(donation?.stripePaymentIntentId).toBeUndefined();
+
+    const seat = await t.run((ctx) => ctx.db.get(seatId));
+    expect(seat?.status).toBe("taken");
+  });
+
+  test("missing donation returns donationId:null without throwing", async () => {
+    const t = convexTest(schema, modules);
+    const result = await t.run((ctx) =>
+      _markPaidForTest(ctx, { stripeSessionId: "cs_test_unknown" }),
+    );
+    expect(result).toEqual({ donationId: null, alreadyPaid: false });
+  });
+});
+
+describe("donations.recordEvent (idempotency)", () => {
+  test("first record inserts; second throws event_already_processed", async () => {
+    const t = convexTest(schema, modules);
+    await t.run((ctx) => _recordEventForTest(ctx, "evt_abc"));
+    await expect(
+      t.run((ctx) => _recordEventForTest(ctx, "evt_abc")),
+    ).rejects.toMatchObject({ data: "event_already_processed" });
+  });
+
+  test("webhook replay protection: same event twice → one seat update", async () => {
+    const { t, seatId, userId } = await setup();
+    const draft = await t.run((ctx) =>
+      _createDraftForTest(
+        ctx,
+        baseArgs({ userId, seatId, tributeText: "For Bob." }),
+      ),
+    );
+
+    const replay = async () => {
+      try {
+        await t.run((ctx) => _recordEventForTest(ctx, "evt_replay"));
+      } catch (err) {
+        // Treat the duplicate-event error the same way the webhook
+        // httpAction does: skip the rest.
+        if (
+          err instanceof Error &&
+          (err as { data?: unknown }).data === "event_already_processed"
+        ) {
+          return;
+        }
+        throw err;
+      }
+      await t.run((ctx) =>
+        _markPaidForTest(ctx, {
+          stripeSessionId: "cs_test_123",
+          paymentIntentId: "pi_test_456",
+        }),
+      );
+    };
+
+    await replay();
+    await replay();
+
+    const donations = await t.run((ctx) => ctx.db.query("donations").collect());
+    expect(donations).toHaveLength(1);
+    expect(donations[0]?.status).toBe("paid");
+    expect(donations[0]?._id).toBe(draft.donationId);
+
+    const seat = await t.run((ctx) => ctx.db.get(seatId));
+    expect(seat?.status).toBe("taken");
+    expect(seat?.donationId).toBe(draft.donationId);
+
+    const events = await t.run((ctx) => ctx.db.query("stripeEvents").collect());
+    expect(events).toHaveLength(1);
   });
 });

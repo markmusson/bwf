@@ -5,7 +5,7 @@ import { getAuthUserId } from "@convex-dev/auth/server";
 import Stripe from "stripe";
 import { internal } from "./_generated/api";
 import type { Id } from "./_generated/dataModel";
-import { action } from "./_generated/server";
+import { action, internalAction } from "./_generated/server";
 
 interface CreateDraftResult {
   donationId: Id<"donations">;
@@ -145,3 +145,42 @@ export const createSession = action({
     };
   },
 });
+
+// One-shot setup: idempotently create the BWF Stripe Product so the
+// donor's Checkout Session can reference it. Run with:
+//   npx convex run stripe:setupProduct
+// Output includes the productId — paste into:
+//   npx convex env set STRIPE_PRODUCT_ID <productId>
+export const setupProduct = internalAction({
+  args: { name: v.optional(v.string()) },
+  handler: async (
+    _ctx,
+    { name },
+  ): Promise<{ productId: string; created: boolean; name: string }> => {
+    const productName = name ?? "BWF Virtual Seat — Blue for Bob";
+    const stripe = getStripe();
+
+    const escaped = productName.replace(/'/g, "\\'");
+    const existing = await stripe.products.search({
+      query: `name:'${escaped}' AND active:'true'`,
+    });
+    if (existing.data.length > 0) {
+      return {
+        productId: existing.data[0]!.id,
+        created: false,
+        name: productName,
+      };
+    }
+
+    const product = await stripe.products.create({
+      name: productName,
+      description: "Donate to the Bob Willis Fund — pick a seat at Edgbaston.",
+    });
+    return { productId: product.id, created: true, name: productName };
+  },
+});
+
+// stripeWebhook httpAction lives in convex/webhooks.ts so it can run
+// in Convex's V8 runtime (httpActions can't be defined in "use node"
+// files). It calls back into the recordEvent + markPaid internal
+// mutations defined in convex/donations.ts.
