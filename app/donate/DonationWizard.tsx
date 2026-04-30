@@ -2,6 +2,12 @@
 
 import { useState } from "react";
 import {
+  isMarketingConsentAnswered,
+  UNANSWERED_MARKETING_CONSENT,
+  type MarketingConsent,
+} from "@/lib/donation/marketingConsent";
+import { MarketingConsentField } from "./MarketingConsentField";
+import {
   EMPTY_GIFT_AID_VALUE,
   StepGiftAid,
   type StepGiftAidValue,
@@ -43,11 +49,19 @@ export function DonationWizard() {
   const [step, setStep] = useState<StepNumber>(1);
   const [giftAid, setGiftAid] =
     useState<StepGiftAidValue>(EMPTY_GIFT_AID_VALUE);
+  const [marketing, setMarketing] = useState<MarketingConsent>(
+    UNANSWERED_MARKETING_CONSENT,
+  );
+  const [marketingError, setMarketingError] = useState(false);
 
   const heading = STEP_HEADINGS[step - 1] ?? STEP_HEADINGS[0];
   const breadcrumbIndex = BREADCRUMB_INDEX_FOR_STEP[step - 1] ?? 0;
 
   const goNext = () => {
+    if (step === 3 && !isMarketingConsentAnswered(marketing)) {
+      setMarketingError(true);
+      return;
+    }
     const next = step + 1;
     if (isStepNumber(next)) setStep(next);
   };
@@ -105,7 +119,22 @@ export function DonationWizard() {
         aria-label={`Step ${step}: ${heading}`}
         className="bg-bwf-mid/30 ring-bwf-blue/20 flex-1 rounded-2xl p-6 ring-1"
       >
-        {step === 5 ? (
+        {step === 3 ? (
+          <div className="flex flex-col gap-6">
+            <p className="text-sm text-white/70">
+              Name, address autocomplete, and T&Cs land in their own tasks.
+              Marketing preference is captured here per PECR.
+            </p>
+            <MarketingConsentField
+              value={marketing}
+              onChange={(next) => {
+                setMarketing(next);
+                setMarketingError(false);
+              }}
+              showError={marketingError}
+            />
+          </div>
+        ) : step === 5 ? (
           <StepGiftAid
             amountPence={MOCK_AMOUNT_PENCE}
             value={giftAid}

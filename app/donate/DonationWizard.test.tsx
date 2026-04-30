@@ -1,7 +1,16 @@
 import { describe, expect, it } from "vitest";
 import { render, screen, within } from "@testing-library/react";
-import userEvent from "@testing-library/user-event";
+import userEvent, { type UserEvent } from "@testing-library/user-event";
 import { DonationWizard } from "./DonationWizard";
+
+async function clickNext(user: UserEvent, label: "Next" | "Pay" = "Next") {
+  await user.click(screen.getByRole("button", { name: label }));
+}
+
+async function answerMarketingIfPresent(user: UserEvent) {
+  const optIn = screen.queryByLabelText(/happy to be contacted/i);
+  if (optIn) await user.click(optIn);
+}
 
 describe("DonationWizard", () => {
   it("renders step 1 (Choose your donation) by default", () => {
@@ -18,10 +27,8 @@ describe("DonationWizard", () => {
     expect(screen.getByRole("button", { name: "Back" })).toBeDisabled();
 
     for (let i = 0; i < 7; i++) {
-      const next = screen.getByRole("button", {
-        name: i === 6 ? "Pay" : "Next",
-      });
-      await user.click(next);
+      await answerMarketingIfPresent(user);
+      await clickNext(user, i === 6 ? "Pay" : "Next");
     }
 
     expect(
@@ -51,10 +58,8 @@ describe("DonationWizard", () => {
         screen.getByRole("heading", { name: heading }),
       ).toBeInTheDocument();
       if (i < expected.length - 1) {
-        const next = screen.getByRole("button", {
-          name: i === 6 ? "Pay" : "Next",
-        });
-        await user.click(next);
+        await answerMarketingIfPresent(user);
+        await clickNext(user, i === 6 ? "Pay" : "Next");
       }
     }
   });
@@ -64,7 +69,8 @@ describe("DonationWizard", () => {
     render(<DonationWizard />);
 
     for (let i = 0; i < 4; i++) {
-      await user.click(screen.getByRole("button", { name: "Next" }));
+      await answerMarketingIfPresent(user);
+      await clickNext(user);
     }
 
     expect(
@@ -77,7 +83,8 @@ describe("DonationWizard", () => {
     render(<DonationWizard />);
 
     for (let i = 0; i < 4; i++) {
-      await user.click(screen.getByRole("button", { name: "Next" }));
+      await answerMarketingIfPresent(user);
+      await clickNext(user);
     }
 
     await user.click(screen.getByRole("checkbox", { name: /Add Gift Aid/i }));
@@ -123,25 +130,53 @@ describe("DonationWizard", () => {
 
     expectCurrent("Select");
 
-    await user.click(screen.getByRole("button", { name: "Next" }));
+    await clickNext(user);
     expectCurrent("Details");
 
-    await user.click(screen.getByRole("button", { name: "Next" }));
+    await clickNext(user);
     expectCurrent("Details");
 
-    await user.click(screen.getByRole("button", { name: "Next" }));
+    await answerMarketingIfPresent(user);
+    await clickNext(user);
     expectCurrent("Message");
 
-    await user.click(screen.getByRole("button", { name: "Next" }));
+    await clickNext(user);
     expectCurrent("Gift Aid");
 
-    await user.click(screen.getByRole("button", { name: "Next" }));
+    await clickNext(user);
     expectCurrent("Gift Aid");
 
-    await user.click(screen.getByRole("button", { name: "Next" }));
+    await clickNext(user);
     expectCurrent("Pay");
 
-    await user.click(screen.getByRole("button", { name: "Pay" }));
+    await clickNext(user, "Pay");
     expectCurrent("Complete");
+  });
+
+  it("blocks advancing from step 3 until marketing consent is answered", async () => {
+    const user = userEvent.setup();
+    render(<DonationWizard />);
+
+    await clickNext(user); // 1 → 2
+    await clickNext(user); // 2 → 3
+    expect(
+      screen.getByRole("heading", { name: "Your details" }),
+    ).toBeInTheDocument();
+
+    await clickNext(user); // attempt 3 → 4 with no answer
+    expect(screen.getByRole("alert")).toHaveTextContent(
+      /Please select a contact preference/i,
+    );
+    expect(
+      screen.getByRole("heading", { name: "Your details" }),
+    ).toBeInTheDocument();
+
+    await user.click(screen.getByLabelText(/please don't contact me/i));
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+
+    await clickNext(user); // 3 → 4 succeeds
+    expect(
+      screen.getByRole("heading", { name: "Leave a tribute" }),
+    ).toBeInTheDocument();
   });
 });
