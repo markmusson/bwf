@@ -87,6 +87,16 @@ export default defineSchema({
     receivedAt: v.number(),
   }).index("by_event", ["eventId"]),
 
+  // Per-key fixed-window counter. Cheap anti-spam for user-facing
+  // mutations: createDraft, holds.claim, tributes.update, etc. Each
+  // key is "<action>:<userId>" or "<action>:<ip>" for unauthenticated
+  // calls. consumeRateLimit reads + writes a single row per call.
+  rateLimits: defineTable({
+    key: v.string(),
+    count: v.number(),
+    windowStartAt: v.number(),
+  }).index("by_key", ["key"]),
+
   // Append-only audit trail for admin actions. Every requireAdmin-gated
   // mutation should log here so we can answer "who approved X and
   // when?" without trawling logs. Indexed by actor + action so we can

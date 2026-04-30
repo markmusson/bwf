@@ -3,6 +3,7 @@ import { getAuthUserId } from "@convex-dev/auth/server";
 import type { Id } from "./_generated/dataModel";
 import { mutation, query, type MutationCtx } from "./_generated/server";
 import { logAdminAction, requireAdmin } from "./admin";
+import { consumeRateLimit, RATE_LIMITS } from "./rateLimit";
 
 // Per 07 §10: prizeEntries are NEVER inserted from a donation flow.
 // This mutation is the only path that adds a row to the table. Donor
@@ -27,6 +28,12 @@ export async function _optInForTest(
   if (!donation) throw new ConvexError("donation_not_found");
   if (donation.userId !== args.userId) throw new ConvexError("forbidden");
   if (donation.status !== "paid") throw new ConvexError("donation_not_paid");
+
+  await consumeRateLimit(
+    ctx,
+    `prizeOptIn:${args.donationId}`,
+    RATE_LIMITS.prizeOptIn,
+  );
 
   const existing = await ctx.db
     .query("prizeEntries")

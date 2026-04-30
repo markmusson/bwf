@@ -10,6 +10,7 @@ import {
   query,
   type MutationCtx,
 } from "./_generated/server";
+import { consumeRateLimit, RATE_LIMITS } from "./rateLimit";
 
 const MIN_DONATION_PENCE = 1000;
 
@@ -61,6 +62,12 @@ export async function _createDraftForTest(
   ) {
     throw new ConvexError("amount_below_minimum");
   }
+
+  await consumeRateLimit(
+    ctx,
+    `createDraft:${args.userId}`,
+    RATE_LIMITS.createDraft,
+  );
 
   const hold = await ctx.db
     .query("holds")

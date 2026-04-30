@@ -2,6 +2,7 @@ import { ConvexError, v } from "convex/values";
 import { getAuthUserId } from "@convex-dev/auth/server";
 import { moderateTribute } from "../lib/moderation";
 import { logAdminAction, requireAdmin } from "./admin";
+import { consumeRateLimit, RATE_LIMITS } from "./rateLimit";
 import type { Id } from "./_generated/dataModel";
 import { mutation, query, type MutationCtx } from "./_generated/server";
 
@@ -28,6 +29,12 @@ export async function _updateForTest(
   if (trimmed.length > TRIBUTE_MAX_LENGTH) {
     throw new ConvexError("tribute_too_long");
   }
+
+  await consumeRateLimit(
+    ctx,
+    `tributeUpdate:${args.donationId}`,
+    RATE_LIMITS.tributeUpdate,
+  );
 
   const existing = await ctx.db
     .query("tributes")

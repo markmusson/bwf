@@ -7,6 +7,7 @@ import {
   query,
   type MutationCtx,
 } from "./_generated/server";
+import { consumeRateLimit, RATE_LIMITS } from "./rateLimit";
 
 const HOLD_TTL_MS = 10 * 60 * 1000;
 
@@ -51,6 +52,7 @@ export const claim = mutation({
   handler: async (ctx, { seatId }) => {
     const userId = await getAuthUserId(ctx);
     if (!userId) throw new ConvexError("unauthenticated");
+    await consumeRateLimit(ctx, `holdClaim:${userId}`, RATE_LIMITS.holdClaim);
     return await _claimSeatForTest(ctx, seatId, userId);
   },
 });
