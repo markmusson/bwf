@@ -84,7 +84,7 @@ Small files, single purpose. Co-locate components and tests.
 
 Tests where they matter: geometry, validators, webhook idempotency, hold concurrency, profanity filter. Skip coverage targets.
 
-Commit small. Conventional Commits. Feature branches off `main`. Open a PR even if Mark is the only reviewer — the Vercel preview is the point.
+Commit small. Conventional Commits. Feature branches off `main`, fast-forward merge to `main` once tests pass, push. **No pull requests** — Mark works solo, PRs are pure overhead.
 
 ## Working with Mark
 
