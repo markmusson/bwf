@@ -86,4 +86,18 @@ export default defineSchema({
     eventId: v.string(),
     receivedAt: v.number(),
   }).index("by_event", ["eventId"]),
+
+  // Audit record for the prize draw. drawName is the idempotency key —
+  // re-running with the same name returns the original record. seed +
+  // entryIds + the published algorithm let any third party replay the
+  // draw and verify the winner.
+  prizeDraws: defineTable({
+    drawName: v.string(),
+    seed: v.string(),
+    entryCount: v.number(),
+    entryIds: v.array(v.id("prizeEntries")),
+    winnerEntryId: v.id("prizeEntries"),
+    winnerDonationId: v.id("donations"),
+    runByUserId: v.id("users"),
+  }).index("by_name", ["drawName"]),
 });
