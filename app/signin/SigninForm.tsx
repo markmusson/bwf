@@ -32,7 +32,7 @@ export function SigninForm() {
     return (
       <section
         aria-label="Sign-in confirmation"
-        className="bg-bwf-deep mx-auto flex min-h-screen max-w-md flex-col justify-center gap-4 px-6 py-12 text-white"
+        className="bg-bwf-blue mx-auto flex min-h-[60vh] max-w-md flex-col justify-center gap-4 px-6 py-12 text-white"
       >
         <h1 className="text-3xl font-semibold tracking-tight">
           Check your inbox
@@ -59,7 +59,7 @@ export function SigninForm() {
   return (
     <section
       aria-label="Sign in"
-      className="bg-bwf-deep mx-auto flex min-h-screen max-w-md flex-col justify-center gap-6 px-6 py-12 text-white"
+      className="bg-bwf-blue mx-auto flex min-h-[60vh] max-w-md flex-col justify-center gap-6 px-6 py-12 text-white"
     >
       <header className="flex flex-col gap-1">
         <h1 className="text-3xl font-semibold tracking-tight">Sign in</h1>
