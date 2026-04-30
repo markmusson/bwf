@@ -72,6 +72,42 @@ export const update = mutation({
   },
 });
 
+// Public — approved tributes for the /wall page. Bounded at 200 most
+// recent; pagination lands when we outgrow that.
+export const listApproved = query({
+  args: {},
+  handler: async (ctx) => {
+    const tributes = await ctx.db
+      .query("tributes")
+      .withIndex("by_status", (q) => q.eq("status", "approved"))
+      .order("desc")
+      .take(200);
+
+    const result: Array<{
+      tributeId: Id<"tributes">;
+      text: string;
+      createdAt: number;
+      displayName: string | null;
+      seat: { stand: string; row: number; num: number } | null;
+    }> = [];
+
+    for (const tribute of tributes) {
+      const donation = await ctx.db.get(tribute.donationId);
+      if (!donation || donation.status !== "paid") continue;
+      const seat = donation.seatId ? await ctx.db.get(donation.seatId) : null;
+      result.push({
+        tributeId: tribute._id,
+        text: tribute.text,
+        createdAt: tribute._creationTime,
+        displayName: donation.hideName ? null : (donation.displayName ?? null),
+        seat: seat ? { stand: seat.stand, row: seat.row, num: seat.num } : null,
+      });
+    }
+
+    return result;
+  },
+});
+
 // Admin moderation queue. Returns pending and rejected tributes with
 // donation context and the donor's display name. Worst-first by
 // profanityScore so the human sees slurs and spam at the top.
