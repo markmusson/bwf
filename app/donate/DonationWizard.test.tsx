@@ -1,7 +1,49 @@
-import { describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { render, screen, within } from "@testing-library/react";
 import userEvent, { type UserEvent } from "@testing-library/user-event";
+
+const useQueryMock = vi.fn();
+const useActionMock = vi.fn();
+
+vi.mock("convex/react", () => ({
+  useQuery: (...args: unknown[]) => useQueryMock(...args),
+  useAction: (...args: unknown[]) => useActionMock(...args),
+}));
+
+vi.mock("@/convex/_generated/api", () => ({
+  api: {
+    holds: { getMine: "api.holds.getMine" },
+    stripe: { createSession: "api.stripe.createSession" },
+  },
+}));
+
+vi.mock("@stripe/react-stripe-js", () => ({
+  EmbeddedCheckoutProvider: ({ children }: { children: React.ReactNode }) => (
+    <div data-testid="stripe-provider">{children}</div>
+  ),
+  EmbeddedCheckout: () => <div data-testid="stripe-checkout" />,
+}));
+
+vi.mock("@stripe/stripe-js", () => ({
+  loadStripe: () => Promise.resolve({}),
+}));
+
 import { DonationWizard } from "./DonationWizard";
+
+const FAKE_HOLD = {
+  _id: "hold_1" as unknown,
+  _creationTime: 0,
+  seatId: "seat_1" as unknown,
+  userId: "user_1" as unknown,
+  expiresAt: Date.now() + 600_000,
+};
+
+function setActiveHold() {
+  useQueryMock.mockReset();
+  useActionMock.mockReset();
+  useQueryMock.mockReturnValue(FAKE_HOLD);
+  useActionMock.mockReturnValue(vi.fn());
+}
 
 async function clickNext(user: UserEvent, label: "Next" | "Pay" = "Next") {
   await user.click(screen.getByRole("button", { name: label }));
@@ -13,11 +55,30 @@ async function answerMarketingIfPresent(user: UserEvent) {
 }
 
 describe("DonationWizard", () => {
+  beforeEach(() => {
+    setActiveHold();
+  });
+
   it("renders step 1 (Choose your donation) by default", () => {
     render(<DonationWizard />);
     expect(
       screen.getByRole("heading", { name: "Choose your donation" }),
     ).toBeInTheDocument();
+  });
+
+  it("redirects to the stadium when there is no active hold", () => {
+    useQueryMock.mockReset();
+    useActionMock.mockReset();
+    useQueryMock.mockReturnValue(null);
+    useActionMock.mockReturnValue(vi.fn());
+
+    render(<DonationWizard />);
+    expect(
+      screen.getByRole("heading", { name: /Pick a seat first/i }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("link", { name: /Back to the stadium/i }),
+    ).toHaveAttribute("href", "/stadium");
   });
 
   it("disables Back on step 1 and disables Next on the final step", async () => {
@@ -151,6 +212,38 @@ describe("DonationWizard", () => {
 
     await clickNext(user, "Pay");
     expectCurrent("Complete");
+  });
+
+  it("calls createSession with the active hold's seatId on step 7", async () => {
+    vi.stubEnv("NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY", "pk_test_dummy");
+    const createSession = vi
+      .fn()
+      .mockResolvedValue({ clientSecret: "cs_test_secret", donationId: "d1" });
+    useActionMock.mockReturnValue(createSession);
+
+    const user = userEvent.setup();
+    render(<DonationWizard />);
+
+    // Walk to step 7 (Pay)
+    for (let i = 0; i < 6; i++) {
+      await answerMarketingIfPresent(user);
+      await clickNext(user);
+    }
+
+    expect(
+      screen.getByRole("heading", { name: "Pay securely" }),
+    ).toBeInTheDocument();
+
+    // useEffect fires the action after render.
+    await screen.findByTestId("stripe-checkout");
+    expect(createSession).toHaveBeenCalledTimes(1);
+    expect(createSession).toHaveBeenCalledWith(
+      expect.objectContaining({
+        seatId: FAKE_HOLD.seatId,
+        amountPence: 1000,
+      }),
+    );
+    vi.unstubAllEnvs();
   });
 
   it("blocks advancing from step 3 until marketing consent is answered", async () => {

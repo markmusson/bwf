@@ -1,6 +1,9 @@
 "use client";
 
+import { useQuery } from "convex/react";
+import Link from "next/link";
 import { useState } from "react";
+import { api } from "@/convex/_generated/api";
 import {
   isMarketingConsentAnswered,
   UNANSWERED_MARKETING_CONSENT,
@@ -12,6 +15,7 @@ import {
   StepGiftAid,
   type StepGiftAidValue,
 } from "./StepGiftAid";
+import { StepPay } from "./StepPay";
 
 const MOCK_AMOUNT_PENCE = 1000;
 
@@ -46,6 +50,7 @@ function isStepNumber(value: number): value is StepNumber {
 }
 
 export function DonationWizard() {
+  const hold = useQuery(api.holds.getMine);
   const [step, setStep] = useState<StepNumber>(1);
   const [giftAid, setGiftAid] =
     useState<StepGiftAidValue>(EMPTY_GIFT_AID_VALUE);
@@ -53,6 +58,29 @@ export function DonationWizard() {
     UNANSWERED_MARKETING_CONSENT,
   );
   const [marketingError, setMarketingError] = useState(false);
+
+  if (hold === null) {
+    return (
+      <section
+        aria-label="No active hold"
+        className="bg-bwf-deep mx-auto flex min-h-screen w-full max-w-3xl flex-col items-center justify-center gap-4 px-6 py-12 text-center text-white"
+      >
+        <h1 className="text-3xl font-semibold tracking-tight">
+          Pick a seat first
+        </h1>
+        <p className="text-white/70">
+          Your seat hold has expired or hasn&apos;t been claimed yet. Head back
+          to the stadium and choose one.
+        </p>
+        <Link
+          href="/stadium"
+          className="bg-bwf-blue hover:bg-bwf-accent rounded-full px-5 py-2 text-sm font-medium text-white transition-colors"
+        >
+          Back to the stadium
+        </Link>
+      </section>
+    );
+  }
 
   const heading = STEP_HEADINGS[step - 1] ?? STEP_HEADINGS[0];
   const breadcrumbIndex = BREADCRUMB_INDEX_FOR_STEP[step - 1] ?? 0;
@@ -139,6 +167,13 @@ export function DonationWizard() {
             amountPence={MOCK_AMOUNT_PENCE}
             value={giftAid}
             onChange={setGiftAid}
+          />
+        ) : step === 7 && hold ? (
+          <StepPay
+            seatId={hold.seatId}
+            amountPence={MOCK_AMOUNT_PENCE}
+            giftAid={giftAid}
+            marketing={marketing}
           />
         ) : (
           <p className="text-sm text-white/70">
