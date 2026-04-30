@@ -3,6 +3,7 @@
 
 import { convexTest } from "convex-test";
 import { describe, expect, test } from "vitest";
+import { api } from "./_generated/api";
 import {
   _createDraftForTest,
   _markPaidForTest,
@@ -214,6 +215,75 @@ describe("donations.markPaid", () => {
       _markPaidForTest(ctx, { stripeSessionId: "cs_test_unknown" }),
     );
     expect(result).toEqual({ donationId: null, alreadyPaid: false });
+  });
+});
+
+describe("donations.aggregateStats", () => {
+  test("zero state returns zero raised, zero seats blue", async () => {
+    const t = convexTest(schema, modules);
+    const stats = await t.query(api.donations.aggregateStats, {});
+    expect(stats).toEqual({
+      raisedPence: 0,
+      seatsBlue: 0,
+      supporters: 0,
+      totalSeats: 0,
+    });
+  });
+
+  test("counts paid donations + Gift Aid uplift, ignores pending", async () => {
+    const t = convexTest(schema, modules);
+    await t.run(async (ctx) => {
+      await ctx.db.insert("seats", {
+        stand: "hollies",
+        row: 0,
+        num: 0,
+        status: "taken" as const,
+      });
+      await ctx.db.insert("seats", {
+        stand: "hollies",
+        row: 0,
+        num: 1,
+        status: "available" as const,
+      });
+      const userId = await ctx.db.insert("users", {});
+      await ctx.db.insert("donations", {
+        userId,
+        amountPence: 1000,
+        currency: "GBP" as const,
+        giftAid: true,
+        hideName: false,
+        hideAmount: false,
+        stripeSessionId: "cs_a",
+        status: "paid" as const,
+      });
+      await ctx.db.insert("donations", {
+        userId,
+        amountPence: 5000,
+        currency: "GBP" as const,
+        giftAid: false,
+        hideName: false,
+        hideAmount: false,
+        stripeSessionId: "cs_b",
+        status: "paid" as const,
+      });
+      await ctx.db.insert("donations", {
+        userId,
+        amountPence: 9999,
+        currency: "GBP" as const,
+        giftAid: true,
+        hideName: false,
+        hideAmount: false,
+        stripeSessionId: "cs_c",
+        status: "pending" as const,
+      });
+    });
+
+    const stats = await t.query(api.donations.aggregateStats, {});
+    expect(stats.totalSeats).toBe(2);
+    expect(stats.seatsBlue).toBe(1);
+    expect(stats.supporters).toBe(2);
+    // £10 + £10/4 (Gift Aid) + £50 = 1000 + 250 + 5000 = 6250
+    expect(stats.raisedPence).toBe(6250);
   });
 });
 

@@ -131,6 +131,32 @@ export const getBySession = query({
   },
 });
 
+// Public reactive aggregate for the campaign header. Numbers update
+// live as webhooks complete. Bounded reads — at v1 scale (~1280 seats,
+// few thousand donations) one pass is fine; if we outgrow this we
+// denormalise into a counter doc per the Convex guidelines.
+export const aggregateStats = query({
+  args: {},
+  handler: async (ctx) => {
+    const seats = await ctx.db.query("seats").take(2000);
+    const totalSeats = seats.length;
+    const seatsBlue = seats.filter((s) => s.status === "taken").length;
+
+    const paid = await ctx.db
+      .query("donations")
+      .withIndex("by_status", (q) => q.eq("status", "paid"))
+      .take(5000);
+
+    const supporters = paid.length;
+    const raisedPence = paid.reduce((sum, d) => {
+      const uplift = d.giftAid ? Math.floor(d.amountPence / 4) : 0;
+      return sum + d.amountPence + uplift;
+    }, 0);
+
+    return { raisedPence, seatsBlue, supporters, totalSeats };
+  },
+});
+
 interface MarkPaidArgs {
   stripeSessionId: string;
   paymentIntentId?: string;

@@ -91,6 +91,21 @@ export const getMine = query({
   },
 });
 
+// Public reactive list of seat ids currently held (non-expired). The
+// stadium canvas joins this client-side with seats.list so held seats
+// show in their amber state without an extra round trip.
+export const activeSeatIds = query({
+  args: {},
+  handler: async (ctx) => {
+    const now = Date.now();
+    const holds = await ctx.db
+      .query("holds")
+      .withIndex("by_expiry", (q) => q.gt("expiresAt", now))
+      .take(2000);
+    return holds.map((h) => h.seatId);
+  },
+});
+
 // Internal: cron-driven sweep. The active-hold uniqueness is enforced
 // at claim time, but expired rows pile up if we don't prune them.
 export const expireHolds = internalMutation({

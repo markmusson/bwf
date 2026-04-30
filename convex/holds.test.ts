@@ -4,6 +4,7 @@
 import { convexTest } from "convex-test";
 import { ConvexError } from "convex/values";
 import { describe, expect, test } from "vitest";
+import { api } from "./_generated/api";
 import schema from "./schema";
 import { _claimSeatForTest } from "./holds";
 
@@ -93,5 +94,48 @@ describe("holds.claim concurrency", () => {
     await expect(
       t.run((ctx) => _claimSeatForTest(ctx, seatId, u1)),
     ).rejects.toMatchObject({ data: "seat_unavailable" });
+  });
+});
+
+describe("holds.activeSeatIds", () => {
+  test("returns only the seat ids of holds that haven't expired", async () => {
+    const t = convexTest(schema, modules);
+    const [seatA, seatB] = await Promise.all([
+      t.run((ctx) =>
+        ctx.db.insert("seats", {
+          stand: "hollies",
+          row: 0,
+          num: 0,
+          status: "available" as const,
+        }),
+      ),
+      t.run((ctx) =>
+        ctx.db.insert("seats", {
+          stand: "hollies",
+          row: 0,
+          num: 1,
+          status: "available" as const,
+        }),
+      ),
+    ]);
+    const u1 = await t.run((ctx) => ctx.db.insert("users", {}));
+
+    await t.run((ctx) =>
+      ctx.db.insert("holds", {
+        seatId: seatA!,
+        userId: u1,
+        expiresAt: Date.now() + 60_000,
+      }),
+    );
+    await t.run((ctx) =>
+      ctx.db.insert("holds", {
+        seatId: seatB!,
+        userId: u1,
+        expiresAt: Date.now() - 60_000,
+      }),
+    );
+
+    const ids = await t.query(api.holds.activeSeatIds, {});
+    expect(ids).toEqual([seatA]);
   });
 });

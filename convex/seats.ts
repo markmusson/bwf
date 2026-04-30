@@ -67,3 +67,19 @@ export const count = query({
     return rows.length;
   },
 });
+
+// Per-stand totals + taken counts for the legend tile row.
+export const standCounts = query({
+  args: {},
+  handler: async (ctx) => {
+    const seats = await ctx.db.query("seats").take(2000);
+    const counts: Record<string, { taken: number; total: number }> = {};
+    for (const seat of seats) {
+      const entry = counts[seat.stand] ?? { taken: 0, total: 0 };
+      entry.total += 1;
+      if (seat.status === "taken") entry.taken += 1;
+      counts[seat.stand] = entry;
+    }
+    return counts;
+  },
+});

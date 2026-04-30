@@ -71,7 +71,8 @@ export default defineSchema({
     ),
   })
     .index("by_session", ["stripeSessionId"])
-    .index("by_user", ["userId"]),
+    .index("by_user", ["userId"])
+    .index("by_status", ["status"]),
 
   prizeEntries: defineTable({
     donationId: v.id("donations"),
