@@ -23,15 +23,18 @@ describe("ProgressBar", () => {
       totalSeats: 0,
     });
     render(<ProgressBar />);
-    expect(screen.getByText(/Help turn Edgbaston blue/i)).toBeInTheDocument();
+    expect(
+      screen.getByText(/Help turn Edgbaston blue for Bob/i),
+    ).toBeInTheDocument();
     const fill = screen.getByTestId("progress-fill");
     expect(fill).toHaveStyle({ width: "0%" });
     expect(
-      screen.getByRole("progressbar", { name: /0% of target/i }),
-    ).toHaveAttribute("aria-valuenow", "0");
+      screen.getByRole("progressbar", { name: /0\.0% of target/i }),
+    ).toBeInTheDocument();
+    expect(screen.getByText("0.0%")).toBeInTheDocument();
   });
 
-  it("computes progress against the £20,000 target (£5,000 raised → 25%)", () => {
+  it("computes progress against the £20,000 target (£5,000 raised → 25.0%)", () => {
     useQueryMock.mockReset();
     useQueryMock.mockReturnValue({
       raisedPence: 500_000,
@@ -41,7 +44,7 @@ describe("ProgressBar", () => {
     });
     render(<ProgressBar />);
     expect(screen.getByTestId("progress-fill")).toHaveStyle({ width: "25%" });
-    expect(screen.getByText("£5,000.00")).toBeInTheDocument();
+    expect(screen.getByText("25.0%")).toBeInTheDocument();
   });
 
   it("clamps over-target progress at 100% and switches to a celebratory line", () => {

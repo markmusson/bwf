@@ -45,7 +45,9 @@ function getProductId(): string {
 
 function getReturnUrl(): string {
   const site = process.env.SITE_URL ?? "http://localhost:3000";
-  return `${site}/donate/complete?session_id={CHECKOUT_SESSION_ID}`;
+  // Stripe redirects to /stadium with session_id; the page opens the
+  // confirmation modal in place rather than routing to a separate page.
+  return `${site}/stadium?session_id={CHECKOUT_SESSION_ID}`;
 }
 
 // Public action: takes the wizard payload, creates a Stripe Embedded

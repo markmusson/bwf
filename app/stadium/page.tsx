@@ -1,11 +1,17 @@
 import type { Metadata } from "next";
-import { StadiumCanvas } from "./StadiumCanvas";
+import { Suspense } from "react";
+import { StadiumExperience } from "./StadiumExperience";
 
 export const metadata: Metadata = {
-  title: "Stadium · BWF Virtual Seats",
-  description: "Pick a seat at Edgbaston for the Bob Willis Fund.",
+  title: "BWF Virtual Seats — Edgbaston",
+  description:
+    "Pick a seat at Edgbaston for the Bob Willis Fund. Tribute, donation from £10.",
 };
 
 export default function StadiumPage() {
-  return <StadiumCanvas />;
+  return (
+    <Suspense fallback={null}>
+      <StadiumExperience />
+    </Suspense>
+  );
 }

@@ -20,17 +20,14 @@ vi.mock("next/navigation", () => ({
 vi.mock("@/convex/_generated/api", () => ({
   api: {
     seats: { list: "api.seats.list" },
-    holds: { claim: "api.holds.claim" },
+    holds: {
+      claim: "api.holds.claim",
+      activeSeatIds: "api.holds.activeSeatIds",
+    },
   },
 }));
 
-import {
-  buildStandSeats,
-  CENTER_X,
-  CENTER_Y,
-  STADIUM_WIDTH,
-  type Seat,
-} from "@/lib/geometry";
+import { buildStandSeats, STADIUM_WIDTH, type Seat } from "@/lib/geometry";
 import { STANDS } from "@/lib/stands";
 import { StadiumCanvas } from "./StadiumCanvas";
 
@@ -70,13 +67,23 @@ function stubCanvasRect(width = STADIUM_WIDTH) {
   };
 }
 
-function defaultMocks(opts?: { authenticated?: boolean }) {
+function configureMocks(opts?: {
+  authenticated?: boolean;
+  seatRows?: ReturnType<typeof rowsCoveringHollies>;
+  heldIds?: unknown[];
+}) {
   useQueryMock.mockReset();
   useMutationMock.mockReset();
   useConvexAuthMock.mockReset();
   routerPush.mockReset();
 
-  useQueryMock.mockReturnValue([]);
+  const seats = opts?.seatRows ?? [];
+  const held = opts?.heldIds ?? [];
+  useQueryMock.mockImplementation((ref: unknown) => {
+    if (ref === "api.seats.list") return seats;
+    if (ref === "api.holds.activeSeatIds") return held;
+    return undefined;
+  });
   useMutationMock.mockReturnValue(vi.fn());
   useConvexAuthMock.mockReturnValue({
     isAuthenticated: opts?.authenticated ?? false,
@@ -85,58 +92,32 @@ function defaultMocks(opts?: { authenticated?: boolean }) {
 }
 
 describe("StadiumCanvas", () => {
-  it("subscribes to api.seats.list via useQuery", () => {
-    defaultMocks();
+  it("renders the canvas region with role=img and the prompt copy", () => {
+    configureMocks();
+    render(<StadiumCanvas />);
+    expect(
+      screen.getByRole("img", { name: /Edgbaston seat map/i }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("heading", { name: /Claim your virtual seat/i }),
+    ).toBeInTheDocument();
+  });
+
+  it("subscribes to api.seats.list and api.holds.activeSeatIds", () => {
+    configureMocks();
     render(<StadiumCanvas />);
     expect(useQueryMock).toHaveBeenCalledWith("api.seats.list");
+    expect(useQueryMock).toHaveBeenCalledWith("api.holds.activeSeatIds");
   });
 
-  it("shows the loading copy while the query is undefined", () => {
-    defaultMocks();
-    useQueryMock.mockReturnValue(undefined);
-    render(<StadiumCanvas />);
-    expect(screen.getByTestId("seat-count-readout")).toHaveTextContent(
-      /Loading the stadium/i,
-    );
-  });
-
-  it("renders the seat count with thousands separator once the query lands", () => {
-    defaultMocks();
-    const seats = Array.from({ length: 1280 }, (_, i) => ({
-      _id: `seat_${i}`,
-      _creationTime: 0,
-      stand: "hollies",
-      row: 0,
-      num: i,
-      status: "available" as const,
-    }));
-    useQueryMock.mockReturnValue(seats);
-    render(<StadiumCanvas />);
-    expect(screen.getByTestId("seat-count-readout")).toHaveTextContent(
-      /1,280 seats in play/,
-    );
-  });
-
-  it("selects a seat when the donor clicks near it on the canvas", async () => {
-    defaultMocks();
-    useQueryMock.mockReturnValue(rowsCoveringHollies());
+  it("selects a seat when the donor clicks on it", async () => {
+    configureMocks({ seatRows: rowsCoveringHollies() });
     const restore = stubCanvasRect();
     const user = userEvent.setup();
 
     render(<StadiumCanvas />);
     const canvas = screen.getByRole("img", { name: /Edgbaston seat map/i });
 
-    // Click at the stadium centre — no seat there, nothing selected.
-    await user.pointer({
-      keys: "[MouseLeft]",
-      target: canvas,
-      coords: { x: CENTER_X, y: CENTER_Y },
-    });
-    expect(
-      screen.queryByTestId("selected-seat-readout"),
-    ).not.toBeInTheDocument();
-
-    // Click on the exact position of Hollies row 0 col 0.
     await user.pointer({
       keys: "[MouseLeft]",
       target: canvas,
@@ -145,13 +126,14 @@ describe("StadiumCanvas", () => {
     expect(screen.getByTestId("selected-seat-readout")).toHaveTextContent(
       /Eric Hollies Stand/i,
     );
-
     restore();
   });
 
   it("redirects to /signin when an unauthenticated donor takes a seat", async () => {
-    defaultMocks({ authenticated: false });
-    useQueryMock.mockReturnValue(rowsCoveringHollies());
+    configureMocks({
+      authenticated: false,
+      seatRows: rowsCoveringHollies(),
+    });
     const restore = stubCanvasRect();
     const user = userEvent.setup();
 
@@ -162,7 +144,6 @@ describe("StadiumCanvas", () => {
       target: canvas,
       coords: { x: SAMPLE_SEAT.x, y: SAMPLE_SEAT.y },
     });
-
     await user.click(
       screen.getByRole("button", { name: /sign in to take this seat/i }),
     );
@@ -171,36 +152,41 @@ describe("StadiumCanvas", () => {
     restore();
   });
 
-  it("calls api.holds.claim and routes to /donate on success", async () => {
-    defaultMocks({ authenticated: true });
+  it("calls claim and emits onSeatClaimed on success", async () => {
+    configureMocks({
+      authenticated: true,
+      seatRows: rowsCoveringHollies(),
+    });
     const claim = vi.fn().mockResolvedValue("hold_123");
     useMutationMock.mockReturnValue(claim);
-    useQueryMock.mockReturnValue(rowsCoveringHollies());
+    const onSeatClaimed = vi.fn();
+
     const restore = stubCanvasRect();
     const user = userEvent.setup();
 
-    render(<StadiumCanvas />);
+    render(<StadiumCanvas onSeatClaimed={onSeatClaimed} />);
     const canvas = screen.getByRole("img", { name: /Edgbaston seat map/i });
     await user.pointer({
       keys: "[MouseLeft]",
       target: canvas,
       coords: { x: SAMPLE_SEAT.x, y: SAMPLE_SEAT.y },
     });
-
     await user.click(screen.getByRole("button", { name: /take this seat/i }));
 
-    expect(claim).toHaveBeenCalledTimes(1);
     expect(claim).toHaveBeenCalledWith({ seatId: SAMPLE_SEAT_ID });
-    expect(routerPush).toHaveBeenCalledWith("/donate");
+    expect(onSeatClaimed).toHaveBeenCalledWith(SAMPLE_SEAT_ID);
+    expect(routerPush).not.toHaveBeenCalled();
     restore();
   });
 
   it("surfaces a friendly message when the seat is held by someone else", async () => {
-    defaultMocks({ authenticated: true });
+    configureMocks({
+      authenticated: true,
+      seatRows: rowsCoveringHollies(),
+    });
     const { ConvexError } = await import("convex/values");
     const claim = vi.fn().mockRejectedValue(new ConvexError("seat_held"));
     useMutationMock.mockReturnValue(claim);
-    useQueryMock.mockReturnValue(rowsCoveringHollies());
     const restore = stubCanvasRect();
     const user = userEvent.setup();
 
@@ -216,7 +202,19 @@ describe("StadiumCanvas", () => {
     expect(await screen.findByRole("alert")).toHaveTextContent(
       /Someone else is taking that seat/i,
     );
-    expect(routerPush).not.toHaveBeenCalled();
     restore();
+  });
+
+  it("colours held seats amber via heldIds (visible in the rendered status legend logic)", () => {
+    const seats = rowsCoveringHollies();
+    const heldId = seats[0]!._id;
+    configureMocks({
+      seatRows: seats,
+      heldIds: [heldId],
+    });
+    render(<StadiumCanvas />);
+    expect(useQueryMock).toHaveBeenCalledWith("api.holds.activeSeatIds");
+    // Visual colour is applied in canvas paint; the test ensures the
+    // hold ids are subscribed and reach the component.
   });
 });

@@ -1,33 +1,36 @@
 @import "tailwindcss";
 
-/* BWF brand palette — sourced from blue-for-bob-v4.html and design pack */
+/* BWF brand palette — exact match to blue-for-bob-v4.html */
 :root {
   --bwf-blue: #0085ca;
-  --bwf-deep: #002a50;
-  --bwf-mid: #003880;
-  --bwf-accent: #0055a0;
+  --bwf-navy: #003b60;
+  --bwf-dark: #001e3c;
+  --bwf-mid: #0066a0;
+  --bwf-blue-light: #33a8e0;
   --bwf-pale: #e5f1f8;
+  --bwf-gold: #ffd700;
+  --bwf-gold-dark: #c4a200;
+  --bwf-coral: #f87171;
 
-  --background: #ffffff;
-  --foreground: #171717;
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: var(--bwf-deep);
-    --foreground: #f5f9fc;
-  }
+  --background: var(--bwf-blue);
+  --foreground: #ffffff;
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --color-bwf-blue: var(--bwf-blue);
-  --color-bwf-deep: var(--bwf-deep);
+  --color-bwf-navy: var(--bwf-navy);
+  --color-bwf-dark: var(--bwf-dark);
   --color-bwf-mid: var(--bwf-mid);
-  --color-bwf-accent: var(--bwf-accent);
+  --color-bwf-blue-light: var(--bwf-blue-light);
   --color-bwf-pale: var(--bwf-pale);
-  --font-sans: var(--font-geist-sans);
+  --color-bwf-gold: var(--bwf-gold);
+  --color-bwf-coral: var(--bwf-coral);
+  --color-bwf-deep: var(--bwf-dark);
+  --color-bwf-accent: var(--bwf-mid);
+  --font-sans: var(--font-barlow);
+  --font-condensed: var(--font-barlow-condensed);
   --font-mono: var(--font-geist-mono);
 }
 
@@ -35,4 +38,14 @@ body {
   background: var(--background);
   color: var(--foreground);
   font-family: var(--font-sans), system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Display utility for the Barlow Condensed all-caps headers used in the mock. */
+.font-display {
+  font-family: var(--font-condensed), "Barlow Condensed", sans-serif;
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  line-height: 1;
 }

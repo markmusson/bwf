@@ -4,10 +4,10 @@ import { useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { formatGbpPence } from "@/lib/money";
 
-interface Stat {
+interface StatCell {
   label: string;
   value: string;
-  emphasis?: boolean;
+  color: "gold" | "blue-light" | "white" | "coral";
 }
 
 const ZERO_STATS = {
@@ -17,28 +17,45 @@ const ZERO_STATS = {
   totalSeats: 0,
 };
 
+function colorClass(color: StatCell["color"]): string {
+  switch (color) {
+    case "gold":
+      return "text-bwf-gold";
+    case "blue-light":
+      return "text-bwf-blue-light";
+    case "white":
+      return "text-white";
+    case "coral":
+      return "text-bwf-coral";
+  }
+}
+
 export function StatsBar() {
   const data = useQuery(api.donations.aggregateStats);
   const loading = data === undefined;
   const stats = data ?? ZERO_STATS;
+  const remaining = Math.max(0, stats.totalSeats - stats.seatsBlue);
 
-  const display: Stat[] = [
+  const cells: StatCell[] = [
     {
       label: "Raised",
       value: formatGbpPence(stats.raisedPence),
-      emphasis: true,
+      color: "gold",
     },
     {
-      label: "Seats Blue",
+      label: "Seats Turned Blue",
       value: stats.seatsBlue.toLocaleString("en-GB"),
+      color: "blue-light",
     },
     {
       label: "Supporters",
       value: stats.supporters.toLocaleString("en-GB"),
+      color: "white",
     },
     {
-      label: "Virtual Seats",
-      value: stats.totalSeats.toLocaleString("en-GB"),
+      label: "Remaining Seats",
+      value: remaining.toLocaleString("en-GB"),
+      color: "coral",
     },
   ];
 
@@ -47,26 +64,28 @@ export function StatsBar() {
       aria-label="Campaign statistics"
       data-testid="stats-bar"
       data-loading={loading ? "true" : "false"}
-      className="border-bwf-blue/20 bg-bwf-mid/20 grid grid-cols-2 gap-px overflow-hidden rounded-2xl border sm:grid-cols-4"
+      className="bg-bwf-dark border-b border-white/10"
     >
-      {display.map((stat) => (
-        <div
-          key={stat.label}
-          className="bg-bwf-deep flex flex-col items-center gap-1 px-4 py-5 text-center"
-        >
-          <span
+      <div className="mx-auto flex max-w-3xl flex-wrap">
+        {cells.map((cell, idx) => (
+          <div
+            key={cell.label}
             className={[
-              "text-2xl font-semibold tracking-tight sm:text-3xl",
-              stat.emphasis ? "text-bwf-blue" : "text-white",
+              "flex min-w-[50%] flex-1 flex-col items-center justify-center px-2 py-3 text-center",
+              idx < cells.length - 1 ? "sm:border-r sm:border-white/10" : "",
             ].join(" ")}
           >
-            {stat.value}
-          </span>
-          <span className="text-xs tracking-wide text-white/60 uppercase">
-            {stat.label}
-          </span>
-        </div>
-      ))}
+            <span
+              className={`font-display text-[clamp(20px,4vw,28px)] ${colorClass(cell.color)}`}
+            >
+              {cell.value}
+            </span>
+            <span className="font-display mt-1 text-[9px] tracking-[2px] text-white/60">
+              {cell.label}
+            </span>
+          </div>
+        ))}
+      </div>
     </section>
   );
 }
