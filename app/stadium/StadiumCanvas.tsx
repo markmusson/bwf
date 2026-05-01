@@ -94,23 +94,26 @@ function drawStadium(
     ctx.fillStyle = "rgba(0, 133, 202, 0.10)";
     ctx.fill();
 
-    // Curved stand-name label, underlaid in the band.
-    const labelR = stand.innerR + 4;
+    // Stand-name label sits at the band's mid-arc point. Drawn upright
+    // (no canvas rotation) so every label reads left-to-right rather
+    // than upside down on the top of the stadium.
     const mid = (a1 + a2) / 2;
     const span = a2 - a1;
-    const flip = Math.sin(mid) > 0; // bottom half — keep text upright
+    const labelR = stand.innerR + (stand.rows * ROW_SPACING) / 2;
+    const lx = CENTER_X + labelR * Math.cos(mid);
+    const ly = CENTER_Y + labelR * Math.sin(mid);
+    const arcLength = labelR * span;
     ctx.save();
-    ctx.translate(CENTER_X, CENTER_Y);
-    ctx.rotate(mid + (flip ? Math.PI / 2 : -Math.PI / 2));
-    ctx.fillStyle = "rgba(255,255,255,0.55)";
-    ctx.font = "800 9px 'Barlow Condensed', system-ui, sans-serif";
+    ctx.fillStyle = "rgba(255,255,255,0.78)";
+    ctx.font = "800 11px 'Barlow Condensed', system-ui, sans-serif";
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
-    // Tighten when the arc is too narrow for the full name.
-    const arcLength = labelR * span;
-    const text = stand.name.toUpperCase();
-    const upright = flip ? labelR + 4 : -(labelR + 4);
-    ctx.fillText(text, 0, upright, Math.min(arcLength - 4, 200));
+    ctx.fillText(
+      stand.name.toUpperCase(),
+      lx,
+      ly,
+      Math.min(arcLength - 6, 200),
+    );
     ctx.restore();
   }
   ctx.restore();
@@ -368,17 +371,15 @@ export function StadiumCanvas({ onSeatClaimed }: Props) {
   };
 
   const tooltipText = hovered ? describeSeat(hovered) : null;
-  const tooltipStatus = hovered
-    ? heldKeys.has(
-        statusKey(hovered.standId, hovered.rowIndex, hovered.colIndex),
-      )
-      ? "Held — someone's paying"
-      : statusByKey.get(
-            statusKey(hovered.standId, hovered.rowIndex, hovered.colIndex),
-          ) === "taken"
-        ? "Taken"
-        : "Available · £10"
-    : null;
+  const tooltipStatus = (() => {
+    if (!hovered) return null;
+    const key = statusKey(hovered.standId, hovered.rowIndex, hovered.colIndex);
+    if (heldKeys.has(key)) return "Held — someone's paying";
+    if (statusByKey.get(key) === "taken") return "Taken";
+    const stand = STANDS.find((s) => s.id === hovered.standId);
+    const price = stand ? `£${Math.round(stand.pricePence / 100)}` : "£10";
+    return `From ${price}`;
+  })();
 
   return (
     <div className="flex flex-col items-center gap-4">

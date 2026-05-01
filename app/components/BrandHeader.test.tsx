@@ -10,14 +10,15 @@ describe("BrandHeader", () => {
     ).toBeInTheDocument();
   });
 
-  it("links the BWF logo home", () => {
+  it("links the BWF logo home with the square mark on a light-blue tile", () => {
     render(<BrandHeader />);
     const link = screen.getByRole("link", {
       name: /The Bob Willis Fund — home/i,
     });
     expect(link).toHaveAttribute("href", "/stadium");
+    expect(link.getAttribute("style") ?? "").toMatch(/3E8BCE|62, ?139, ?206/i);
     const img = link.querySelector("img");
-    expect(img?.getAttribute("src")).toMatch(/bwf-logo-white\.svg/);
+    expect(img?.getAttribute("src")).toMatch(/bwf-logo-square\.svg/);
   });
 
   it("renders the three match-info pills with no emoji", () => {

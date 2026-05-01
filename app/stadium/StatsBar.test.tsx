@@ -66,7 +66,25 @@ describe("StatsBar", () => {
     expect(grid?.children.length).toBe(4);
   });
 
-  it("renders a percentage-claimed sublabel in a subtle blue tone", () => {
+  it("draws hairline vertical dividers between cells", () => {
+    useQueryMock.mockReset();
+    useQueryMock.mockReturnValue({
+      raisedPence: 0,
+      seatsBlue: 0,
+      supporters: 0,
+      totalSeats: 1280,
+    });
+    const { container } = render(<StatsBar />);
+    const grid = container.querySelector('[data-testid="stats-grid"]');
+    const cells = Array.from(grid?.children ?? []) as HTMLElement[];
+    // First cell: no left border. Cells 2-4: border-l.
+    expect(cells[0]?.className).not.toMatch(/border-l/);
+    for (const c of cells.slice(1)) {
+      expect(c.className).toMatch(/border-l/);
+    }
+  });
+
+  it("does not duplicate the progress bar with a % claimed sublabel", () => {
     useQueryMock.mockReset();
     useQueryMock.mockReturnValue({
       raisedPence: 0,
@@ -75,21 +93,7 @@ describe("StatsBar", () => {
       totalSeats: 1280,
     });
     render(<StatsBar />);
-    const pct = screen.getByTestId("stats-pct");
-    expect(pct.textContent).toContain("25%");
-    expect(pct.textContent).toMatch(/claimed/i);
-    expect(pct.className).toMatch(/text-bwf-blue-light/);
-  });
-
-  it("renders 0% claimed when totalSeats is zero", () => {
-    useQueryMock.mockReset();
-    useQueryMock.mockReturnValue({
-      raisedPence: 0,
-      seatsBlue: 0,
-      supporters: 0,
-      totalSeats: 0,
-    });
-    render(<StatsBar />);
-    expect(screen.getByTestId("stats-pct").textContent).toContain("0%");
+    expect(screen.queryByTestId("stats-pct")).toBeNull();
+    expect(screen.queryByText(/claimed/i)).toBeNull();
   });
 });

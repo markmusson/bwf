@@ -17,9 +17,9 @@ export const BWF = {
     title: "Blue for Bob 2026",
     subtitle: "The Bob Willis Fund · Edgbaston",
     matchPills: [
-      "Tue 14 July 2026 · 11:00am",
       "England vs India",
-      "Edgbaston · Rothesay ODI",
+      "Edgbaston, Birmingham",
+      "ODI · Summer 2026",
     ] as const,
   },
 } as const;

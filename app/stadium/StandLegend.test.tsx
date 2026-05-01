@@ -20,7 +20,7 @@ describe("StandLegend", () => {
     useQueryMock.mockReturnValue({});
     render(<StandLegend />);
     const list = screen.getByRole("list", { name: /Stands/i });
-    expect(list.querySelectorAll("li")).toHaveLength(6);
+    expect(list.querySelectorAll("li")).toHaveLength(7);
     expect(screen.getByTestId("stand-tile-hollies")).toHaveTextContent(
       /Eric Hollies Stand/,
     );

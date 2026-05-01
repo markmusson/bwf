@@ -1,45 +1,23 @@
 import type { Stand } from "./geometry";
 
-// Per-stand prices match the live mock (blue-for-bob-v4.html line 311+):
-// premium £50 (South Stand), standard £25 (Hollies/Stanley/West),
-// general £10 (Wyatt/Priory). Money is integer pence everywhere.
+// Edgbaston layout, clockwise around the pitch.
+//
+// Sources: Wikipedia (Edgbaston Cricket Ground) and the official
+// edgbaston.com layout. Compass orientation has north (City End) up
+// and the Pavilion at the south. Hollies sits on the east side
+// behind the River Rea, opposite the Raglan / West side.
+//
+// Tier prices are the seat MINIMUM (donor can bump upwards):
+//   £50 premium  – South / Pavilion (best view, on the wicket)
+//   £25 standard – Hollies, Wyatt (City End), Raglan, West, Stanley
+//   £10 general  – Priory / Drayton Manor Family Stand
+//
+// vToRad maps v=0 to north (top), increasing clockwise.
 export const STANDS: readonly Stand[] = [
-  {
-    id: "hollies",
-    name: "Eric Hollies Stand",
-    sub: "The Famous Stand",
-    tier: "standard",
-    vStart: 313,
-    vEnd: 47,
-    innerR: 133,
-    rows: 13,
-    pricePence: 2_500,
-  },
-  {
-    id: "wyatt",
-    name: "Wyatt Stand",
-    sub: "RES Wyatt",
-    tier: "general",
-    vStart: 47,
-    vEnd: 90,
-    innerR: 131,
-    rows: 7,
-    pricePence: 1_000,
-  },
-  {
-    id: "stanley",
-    name: "Stanley Barnes",
-    sub: "East Side",
-    tier: "standard",
-    vStart: 90,
-    vEnd: 148,
-    innerR: 131,
-    rows: 8,
-    pricePence: 2_500,
-  },
+  // South — Pavilion End. Bottom of the canvas. Wide arc, premium.
   {
     id: "south",
-    name: "South Stand",
+    name: "Pavilion (South Stand)",
     sub: "Pavilion End",
     tier: "premium",
     vStart: 148,
@@ -48,26 +26,77 @@ export const STANDS: readonly Stand[] = [
     rows: 10,
     pricePence: 5_000,
   },
+  // West Stand — large two-tier west side, between Pavilion and Priory.
   {
     id: "west",
     name: "West Stand",
     sub: "",
     tier: "standard",
     vStart: 212,
-    vEnd: 298,
+    vEnd: 265,
     innerR: 133,
     rows: 11,
     pricePence: 2_500,
   },
+  // Priory / Drayton Manor Family Stand — small, between West and Raglan.
   {
     id: "priory",
     name: "Priory Stand",
-    sub: "Family Stand",
+    sub: "Drayton Manor Family",
     tier: "general",
-    vStart: 298,
-    vEnd: 313,
-    innerR: 130,
+    vStart: 265,
+    vEnd: 290,
+    innerR: 131,
     rows: 5,
     pricePence: 1_000,
+  },
+  // Raglan Stand — north-west, parallel to the wicket, opposite Hollies.
+  {
+    id: "raglan",
+    name: "Raglan Stand",
+    sub: "",
+    tier: "standard",
+    vStart: 290,
+    vEnd: 330,
+    innerR: 132,
+    rows: 8,
+    pricePence: 2_500,
+  },
+  // R.E.S. Wyatt Stand — City End (north). vStart wraps past 360.
+  {
+    id: "wyatt",
+    name: "R.E.S. Wyatt Stand",
+    sub: "City End",
+    tier: "general",
+    vStart: 330,
+    vEnd: 405,
+    innerR: 133,
+    rows: 8,
+    pricePence: 1_000,
+  },
+  // Stanley Barnes — small north-east stand in front of the scoreboard.
+  {
+    id: "stanley",
+    name: "Stanley Barnes Stand",
+    sub: "Scoreboard",
+    tier: "standard",
+    vStart: 45,
+    vEnd: 70,
+    innerR: 131,
+    rows: 6,
+    pricePence: 2_500,
+  },
+  // Eric Hollies Stand — east side behind the River Rea. The biggest,
+  // most atmospheric stand at Edgbaston. Wide arc, bumped row count.
+  {
+    id: "hollies",
+    name: "Eric Hollies Stand",
+    sub: "The Famous Stand",
+    tier: "standard",
+    vStart: 70,
+    vEnd: 148,
+    innerR: 133,
+    rows: 13,
+    pricePence: 2_500,
   },
 ];

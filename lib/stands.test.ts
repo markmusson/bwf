@@ -2,8 +2,17 @@ import { describe, expect, it } from "vitest";
 import { STANDS } from "./stands";
 
 describe("STANDS", () => {
-  it("has six stands", () => {
-    expect(STANDS).toHaveLength(6);
+  it("has the seven Edgbaston stands (clockwise from Pavilion)", () => {
+    expect(STANDS).toHaveLength(7);
+    expect(STANDS.map((s) => s.id)).toEqual([
+      "south",
+      "west",
+      "priory",
+      "raglan",
+      "wyatt",
+      "stanley",
+      "hollies",
+    ]);
   });
 
   it("uses unique stand ids", () => {
@@ -25,11 +34,11 @@ describe("STANDS", () => {
     }
   });
 
-  it("forms a continuous ring — each stand's vEnd equals the next's vStart", () => {
+  it("forms a continuous ring — each stand's vEnd equals the next's vStart (mod 360)", () => {
     for (let i = 0; i < STANDS.length; i++) {
       const current = STANDS[i]!;
       const next = STANDS[(i + 1) % STANDS.length]!;
-      expect(current.vEnd).toBe(next.vStart);
+      expect(current.vEnd % 360).toBe(next.vStart % 360);
     }
   });
 });

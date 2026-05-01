@@ -32,10 +32,6 @@ export function StatsBar() {
   const data = useQuery(api.donations.aggregateStats);
   const loading = data === undefined;
   const stats = data ?? ZERO_STATS;
-  const pct =
-    stats.totalSeats > 0
-      ? Math.round((stats.seatsBlue / stats.totalSeats) * 100)
-      : 0;
 
   const cells: StatCell[] = [
     {
@@ -67,12 +63,15 @@ export function StatsBar() {
       data-loading={loading ? "true" : "false"}
       className="bg-bwf-dark border-b border-white/10"
     >
-      <div className="mx-auto max-w-3xl px-2 pt-3 pb-1">
-        <div data-testid="stats-grid" className="grid grid-cols-4 gap-1">
-          {cells.map((cell) => (
+      <div className="mx-auto max-w-3xl px-2 py-3">
+        <div data-testid="stats-grid" className="grid grid-cols-4">
+          {cells.map((cell, idx) => (
             <div
               key={cell.label}
-              className="flex flex-col items-center justify-center text-center"
+              className={[
+                "flex flex-col items-center justify-center px-2 text-center",
+                idx > 0 ? "border-l border-white/10" : "",
+              ].join(" ")}
             >
               <span
                 className={`font-display text-[clamp(18px,4vw,28px)] leading-none ${colorClass(cell.color)}`}
@@ -85,12 +84,6 @@ export function StatsBar() {
             </div>
           ))}
         </div>
-        <p
-          data-testid="stats-pct"
-          className="text-bwf-blue-light/80 mt-1 pb-2 text-center text-[11px] tracking-[2px] uppercase"
-        >
-          {pct}% claimed
-        </p>
       </div>
     </section>
   );

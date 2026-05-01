@@ -6,21 +6,23 @@ export function BrandHeader() {
   return (
     <header
       role="banner"
-      className="bg-bwf-blue border-bwf-blue-light/40 border-b-[3px] px-5 py-6 text-white"
+      className="border-b-[3px] px-5 py-6 text-white"
+      style={{ backgroundColor: "#153A5D", borderBottomColor: "#3A83C5" }}
     >
       <div className="mx-auto flex max-w-3xl flex-col items-center gap-3 text-center">
         <Link
           href="/stadium"
           aria-label="The Bob Willis Fund — home"
-          className="flex flex-shrink-0 items-center justify-center"
+          className="flex flex-shrink-0 items-center justify-center rounded-2xl p-2"
+          style={{ backgroundColor: "#3E8BCE" }}
         >
           <Image
-            src="/brand/bwf-logo-white.svg"
+            src="/brand/bwf-logo-square.svg"
             alt="The Bob Willis Fund"
-            width={64}
-            height={64}
+            width={72}
+            height={72}
             priority
-            className="h-14 w-14 sm:h-16 sm:w-16"
+            className="h-16 w-16 sm:h-20 sm:w-20"
           />
         </Link>
 
@@ -35,7 +37,7 @@ export function BrandHeader() {
           {BWF.campaign.matchPills.map((pill) => (
             <li
               key={pill}
-              className="font-display ring-bwf-blue-light/30 inline-flex items-center rounded-full bg-[rgba(255,255,255,0.10)] px-3 py-1 text-[12px] tracking-wider text-white ring-1"
+              className="ring-bwf-blue-light/30 inline-flex items-center rounded-full bg-[rgba(255,255,255,0.10)] px-3 py-1 text-[11px] font-normal tracking-[2px] text-white/90 uppercase ring-1"
             >
               {pill}
             </li>

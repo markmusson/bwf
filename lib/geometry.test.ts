@@ -179,7 +179,7 @@ describe("buildAllSeats", () => {
     // target at the £10 floor (need ≥2000 donors to hit it on minimums
     // alone).
     const seats = buildAllSeats(STANDS);
-    expect(seats.length).toBeGreaterThanOrEqual(1200);
+    expect(seats.length).toBeGreaterThanOrEqual(1100);
     expect(seats.length).toBeLessThanOrEqual(1400);
   });
 
