@@ -64,8 +64,8 @@ export function StadiumExperience() {
           <div className="bg-bwf-deep/40 ring-bwf-blue/30 rounded-2xl p-3 ring-1">
             <StadiumCanvas />
           </div>
-          <SeatStatesKey />
           <StandLegend />
+          <SeatStatesKey />
         </div>
       </section>
 

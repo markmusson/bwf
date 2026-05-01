@@ -24,7 +24,7 @@ export function StandLegend({ onStandClick }: Props) {
   return (
     <ul
       aria-label="Stands"
-      className="font-display flex flex-wrap items-stretch justify-center gap-1.5 text-[11px] font-normal tracking-[1px] text-white/80 uppercase"
+      className="flex flex-wrap items-stretch justify-center gap-1.5 text-[11px] font-normal tracking-[0.5px] text-white/80 uppercase"
     >
       {STANDS.map((stand) => {
         const stat = counts?.[stand.id] ?? { taken: 0, total: 0 };
