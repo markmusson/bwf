@@ -1,5 +1,8 @@
 import type { Stand } from "./geometry";
 
+// Per-stand prices match the live mock (blue-for-bob-v4.html line 311+):
+// premium £50 (South Stand), standard £25 (Hollies/Stanley/West),
+// general £10 (Wyatt/Priory). Money is integer pence everywhere.
 export const STANDS: readonly Stand[] = [
   {
     id: "hollies",
@@ -10,6 +13,7 @@ export const STANDS: readonly Stand[] = [
     vEnd: 47,
     innerR: 133,
     rows: 13,
+    pricePence: 2_500,
   },
   {
     id: "wyatt",
@@ -20,6 +24,7 @@ export const STANDS: readonly Stand[] = [
     vEnd: 90,
     innerR: 131,
     rows: 7,
+    pricePence: 1_000,
   },
   {
     id: "stanley",
@@ -30,6 +35,7 @@ export const STANDS: readonly Stand[] = [
     vEnd: 148,
     innerR: 131,
     rows: 8,
+    pricePence: 2_500,
   },
   {
     id: "south",
@@ -40,6 +46,7 @@ export const STANDS: readonly Stand[] = [
     vEnd: 212,
     innerR: 133,
     rows: 10,
+    pricePence: 5_000,
   },
   {
     id: "west",
@@ -50,6 +57,7 @@ export const STANDS: readonly Stand[] = [
     vEnd: 298,
     innerR: 133,
     rows: 11,
+    pricePence: 2_500,
   },
   {
     id: "priory",
@@ -60,5 +68,6 @@ export const STANDS: readonly Stand[] = [
     vEnd: 313,
     innerR: 130,
     rows: 5,
+    pricePence: 1_000,
   },
 ];

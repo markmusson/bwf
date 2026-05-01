@@ -76,7 +76,11 @@ function drawStadium(
   ctx.fillStyle = STAND_FILL_BASE;
   ctx.fillRect(0, 0, STADIUM_WIDTH, STADIUM_HEIGHT);
 
-  // Stand bands — one translucent ring per stand to anchor seats.
+  // Stand bands — one translucent ring per stand to anchor seats. The
+  // stand name is drawn UNDER the seats on the inner edge of its band
+  // (between the band and the pitch) so it reads like a stadium-deck
+  // label, not an orbiting tag.
+  ctx.save();
   for (const stand of STANDS) {
     const a1 = vToRad(stand.vStart);
     let a2 = vToRad(stand.vEnd);
@@ -89,28 +93,52 @@ function drawStadium(
     ctx.closePath();
     ctx.fillStyle = "rgba(0, 133, 202, 0.10)";
     ctx.fill();
-  }
 
-  // Pitch oval
+    // Curved stand-name label, underlaid in the band.
+    const labelR = stand.innerR + 4;
+    const mid = (a1 + a2) / 2;
+    const span = a2 - a1;
+    const flip = Math.sin(mid) > 0; // bottom half — keep text upright
+    ctx.save();
+    ctx.translate(CENTER_X, CENTER_Y);
+    ctx.rotate(mid + (flip ? Math.PI / 2 : -Math.PI / 2));
+    ctx.fillStyle = "rgba(255,255,255,0.55)";
+    ctx.font = "800 9px 'Barlow Condensed', system-ui, sans-serif";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    // Tighten when the arc is too narrow for the full name.
+    const arcLength = labelR * span;
+    const text = stand.name.toUpperCase();
+    const upright = flip ? labelR + 4 : -(labelR + 4);
+    ctx.fillText(text, 0, upright, Math.min(arcLength - 4, 200));
+    ctx.restore();
+  }
+  ctx.restore();
+
+  // Circular pitch — 2 concentric rings (outer field + inner ring),
+  // EDGBASTON wordmark dead-centre. Matches the v4 mock.
+  const pitchOuterR = 105;
+  const pitchInnerR = 60;
   ctx.fillStyle = "#0c4a2a";
   ctx.beginPath();
-  ctx.ellipse(CENTER_X, CENTER_Y, 110, 95, 0, 0, Math.PI * 2);
+  ctx.arc(CENTER_X, CENTER_Y, pitchOuterR, 0, Math.PI * 2);
   ctx.fill();
-  ctx.strokeStyle = "rgba(255,255,255,0.25)";
+  ctx.strokeStyle = "rgba(255,255,255,0.30)";
   ctx.lineWidth = 1;
   ctx.stroke();
 
-  // Wicket strip
-  ctx.fillStyle = "#e9c977";
-  ctx.fillRect(CENTER_X - 6, CENTER_Y - 24, 12, 48);
+  ctx.beginPath();
+  ctx.arc(CENTER_X, CENTER_Y, pitchInnerR, 0, Math.PI * 2);
+  ctx.strokeStyle = "rgba(255,255,255,0.18)";
+  ctx.stroke();
 
-  // EDGBASTON text on pitch
+  // EDGBASTON wordmark, dead centre.
   ctx.save();
-  ctx.fillStyle = "rgba(255,255,255,0.9)";
-  ctx.font = "700 13px 'Barlow Condensed', system-ui, sans-serif";
+  ctx.fillStyle = "rgba(255,255,255,0.92)";
+  ctx.font = "800 14px 'Barlow Condensed', system-ui, sans-serif";
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
-  ctx.fillText("EDGBASTON", CENTER_X, CENTER_Y + 50);
+  ctx.fillText("EDGBASTON", CENTER_X, CENTER_Y);
   ctx.restore();
 
   // Seats
@@ -144,24 +172,6 @@ function drawStadium(
     ctx.lineWidth = 1.8;
     ctx.stroke();
   }
-
-  // Stand name labels (rendered last so they sit over seats)
-  ctx.save();
-  ctx.fillStyle = "rgba(255,255,255,0.85)";
-  ctx.font = "800 11px 'Barlow Condensed', system-ui, sans-serif";
-  ctx.textAlign = "center";
-  ctx.textBaseline = "middle";
-  for (const stand of STANDS) {
-    const a1 = vToRad(stand.vStart);
-    let a2 = vToRad(stand.vEnd);
-    if (a2 <= a1) a2 += Math.PI * 2;
-    const mid = (a1 + a2) / 2;
-    const r = stand.innerR + stand.rows * ROW_SPACING + 14;
-    const x = CENTER_X + r * Math.cos(mid);
-    const y = CENTER_Y + r * Math.sin(mid);
-    ctx.fillText(stand.name.toUpperCase(), x, y);
-  }
-  ctx.restore();
 
   ctx.restore();
 }

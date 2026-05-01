@@ -25,6 +25,7 @@ export interface Stand {
   readonly vEnd: number;
   readonly innerR: number;
   readonly rows: number;
+  readonly pricePence: number;
 }
 
 export interface Seat {
@@ -72,7 +73,7 @@ export function buildStandSeats(stand: Stand): Seat[] {
         rowIndex: row,
         colIndex: col,
         tier: stand.tier,
-        basePricePence: DEFAULT_BASE_PRICE_PENCE,
+        basePricePence: stand.pricePence,
         x: CENTER_X + radius * Math.cos(angle),
         y: CENTER_Y + radius * Math.sin(angle),
       });

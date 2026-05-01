@@ -2,12 +2,12 @@
 
 import { useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
-import { formatGbpPence } from "@/lib/money";
+import { formatGbpPenceCompact } from "@/lib/money";
 
 interface StatCell {
   label: string;
   value: string;
-  color: "gold" | "blue-light" | "white" | "coral";
+  color: "gold" | "blue-light" | "white";
 }
 
 const ZERO_STATS = {
@@ -25,8 +25,6 @@ function colorClass(color: StatCell["color"]): string {
       return "text-bwf-blue-light";
     case "white":
       return "text-white";
-    case "coral":
-      return "text-bwf-coral";
   }
 }
 
@@ -34,16 +32,19 @@ export function StatsBar() {
   const data = useQuery(api.donations.aggregateStats);
   const loading = data === undefined;
   const stats = data ?? ZERO_STATS;
-  const remaining = Math.max(0, stats.totalSeats - stats.seatsBlue);
+  const pct =
+    stats.totalSeats > 0
+      ? Math.round((stats.seatsBlue / stats.totalSeats) * 100)
+      : 0;
 
   const cells: StatCell[] = [
     {
       label: "Raised",
-      value: formatGbpPence(stats.raisedPence),
+      value: formatGbpPenceCompact(stats.raisedPence),
       color: "gold",
     },
     {
-      label: "Seats Turned Blue",
+      label: "Seats Blue",
       value: stats.seatsBlue.toLocaleString("en-GB"),
       color: "blue-light",
     },
@@ -53,9 +54,9 @@ export function StatsBar() {
       color: "white",
     },
     {
-      label: "Remaining Seats",
-      value: remaining.toLocaleString("en-GB"),
-      color: "coral",
+      label: "Virtual Seats",
+      value: stats.totalSeats.toLocaleString("en-GB"),
+      color: "white",
     },
   ];
 
@@ -66,25 +67,30 @@ export function StatsBar() {
       data-loading={loading ? "true" : "false"}
       className="bg-bwf-dark border-b border-white/10"
     >
-      <div className="mx-auto flex max-w-3xl flex-wrap">
-        {cells.map((cell, idx) => (
-          <div
-            key={cell.label}
-            className={[
-              "flex min-w-[50%] flex-1 flex-col items-center justify-center px-2 py-3 text-center",
-              idx < cells.length - 1 ? "sm:border-r sm:border-white/10" : "",
-            ].join(" ")}
-          >
-            <span
-              className={`font-display text-[clamp(20px,4vw,28px)] ${colorClass(cell.color)}`}
+      <div className="mx-auto max-w-3xl px-2 pt-3 pb-1">
+        <div data-testid="stats-grid" className="grid grid-cols-4 gap-1">
+          {cells.map((cell) => (
+            <div
+              key={cell.label}
+              className="flex flex-col items-center justify-center text-center"
             >
-              {cell.value}
-            </span>
-            <span className="font-display mt-1 text-[9px] tracking-[2px] text-white/60">
-              {cell.label}
-            </span>
-          </div>
-        ))}
+              <span
+                className={`font-display text-[clamp(18px,4vw,28px)] leading-none ${colorClass(cell.color)}`}
+              >
+                {cell.value}
+              </span>
+              <span className="font-display mt-1 text-[9px] tracking-[2px] text-white/60 uppercase">
+                {cell.label}
+              </span>
+            </div>
+          ))}
+        </div>
+        <p
+          data-testid="stats-pct"
+          className="text-bwf-blue-light/80 mt-1 pb-2 text-center text-[11px] tracking-[2px] uppercase"
+        >
+          {pct}% claimed
+        </p>
       </div>
     </section>
   );

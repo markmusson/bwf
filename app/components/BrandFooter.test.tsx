@@ -8,6 +8,20 @@ describe("BrandFooter", () => {
     expect(screen.getByText(/1185346/)).toBeInTheDocument();
   });
 
+  it("renders the mock-style mission line and Bob Willis dates", () => {
+    render(<BrandFooter />);
+    expect(
+      screen.getByText(/Raising money for better prostate cancer screening/i),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(/Named in honour of Bob Willis/i),
+    ).toBeInTheDocument();
+    expect(screen.getByText(/1949–2019/)).toBeInTheDocument();
+    expect(
+      screen.getByText(/Administered by The Talent Fund/i),
+    ).toBeInTheDocument();
+  });
+
   it("links to the BWF main site", () => {
     render(<BrandFooter />);
     const link = screen.getByRole("link", { name: /bobwillisfund\.org/i });

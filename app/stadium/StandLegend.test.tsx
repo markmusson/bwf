@@ -43,10 +43,39 @@ describe("StandLegend", () => {
     expect(screen.getByTestId("stand-tile-hollies")).toHaveTextContent(/400/);
   });
 
-  it("renders tiles that fill their grid row to keep heights uniform", () => {
+  it("shows the per-stand price pill (Hollies £25, South £50, Wyatt £10)", () => {
     useQueryMock.mockReset();
     useQueryMock.mockReturnValue({});
     render(<StandLegend />);
+    expect(screen.getByTestId("stand-price-hollies").textContent).toContain(
+      "£25",
+    );
+    expect(screen.getByTestId("stand-price-south").textContent).toContain(
+      "£50",
+    );
+    expect(screen.getByTestId("stand-price-wyatt").textContent).toContain(
+      "£10",
+    );
+  });
+
+  it("renders the claimed/total count in 'X / Y' format", () => {
+    useQueryMock.mockReset();
+    useQueryMock.mockReturnValue({
+      hollies: { taken: 82, total: 457 },
+    });
+    render(<StandLegend />);
+    expect(screen.getByTestId("stand-count-hollies").textContent).toMatch(
+      /82\s*\/\s*457/,
+    );
+  });
+
+  it("renders pill-style tiles in a single flex-wrap row, not a card grid", () => {
+    useQueryMock.mockReset();
+    useQueryMock.mockReturnValue({});
+    render(<StandLegend />);
+    const list = screen.getByRole("list", { name: /Stands/i });
+    expect(list.className).toMatch(/flex/);
+    expect(list.className).toMatch(/flex-wrap/);
     for (const stand of [
       "hollies",
       "wyatt",
@@ -56,12 +85,9 @@ describe("StandLegend", () => {
       "priory",
     ]) {
       expect(screen.getByTestId(`stand-tile-${stand}`).className).toMatch(
-        /\bh-full\b/,
+        /rounded-full/,
       );
     }
-    expect(screen.getByRole("list", { name: /Stands/i }).className).toMatch(
-      /auto-rows-fr/,
-    );
   });
 
   it("invokes onStandClick when a tile is interactive and clicked", async () => {

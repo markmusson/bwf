@@ -30,10 +30,10 @@ describe("StatsBar", () => {
       "true",
     );
     expect(screen.getByText(/Raised/i)).toBeInTheDocument();
-    expect(screen.getByText("£0.00")).toBeInTheDocument();
+    expect(screen.getByText("£0")).toBeInTheDocument();
   });
 
-  it("renders the four campaign stats matching the live mock copy", () => {
+  it("renders the four mock stats: Raised / Seats Blue / Supporters / Virtual Seats", () => {
     useQueryMock.mockReset();
     useQueryMock.mockReturnValue({
       raisedPence: 1_234_500,
@@ -42,32 +42,54 @@ describe("StatsBar", () => {
       totalSeats: 1280,
     });
     render(<StatsBar />);
-    expect(screen.getByText("£12,345.00")).toBeInTheDocument();
+    expect(screen.getByText("£12,345")).toBeInTheDocument();
     expect(screen.getByText("59")).toBeInTheDocument();
     expect(screen.getByText("58")).toBeInTheDocument();
-    // Remaining = totalSeats - seatsBlue = 1221
-    expect(screen.getByText("1,221")).toBeInTheDocument();
+    expect(screen.getByText("1,280")).toBeInTheDocument();
     expect(screen.getByText("Raised")).toBeInTheDocument();
-    expect(screen.getByText("Seats Turned Blue")).toBeInTheDocument();
+    expect(screen.getByText("Seats Blue")).toBeInTheDocument();
     expect(screen.getByText("Supporters")).toBeInTheDocument();
-    expect(screen.getByText("Remaining Seats")).toBeInTheDocument();
+    expect(screen.getByText("Virtual Seats")).toBeInTheDocument();
   });
 
-  it("never shows a negative remaining count", () => {
+  it("renders a single-row 4-column grid with all four cells flush", () => {
     useQueryMock.mockReset();
     useQueryMock.mockReturnValue({
       raisedPence: 0,
-      seatsBlue: 100,
+      seatsBlue: 0,
       supporters: 0,
-      totalSeats: 50,
+      totalSeats: 1280,
     });
     const { container } = render(<StatsBar />);
-    // Pull the four stat cells; the last one is "Remaining Seats".
-    const cells = container.querySelectorAll(
-      '[aria-label="Campaign statistics"] > div > div',
-    );
-    const remainingCell = cells[cells.length - 1];
-    expect(remainingCell?.textContent).toContain("0");
-    expect(remainingCell?.textContent).toContain("Remaining Seats");
+    const grid = container.querySelector('[data-testid="stats-grid"]');
+    expect(grid?.className).toMatch(/grid-cols-4/);
+    expect(grid?.children.length).toBe(4);
+  });
+
+  it("renders a percentage-claimed sublabel in a subtle blue tone", () => {
+    useQueryMock.mockReset();
+    useQueryMock.mockReturnValue({
+      raisedPence: 0,
+      seatsBlue: 320,
+      supporters: 320,
+      totalSeats: 1280,
+    });
+    render(<StatsBar />);
+    const pct = screen.getByTestId("stats-pct");
+    expect(pct.textContent).toContain("25%");
+    expect(pct.textContent).toMatch(/claimed/i);
+    expect(pct.className).toMatch(/text-bwf-blue-light/);
+  });
+
+  it("renders 0% claimed when totalSeats is zero", () => {
+    useQueryMock.mockReset();
+    useQueryMock.mockReturnValue({
+      raisedPence: 0,
+      seatsBlue: 0,
+      supporters: 0,
+      totalSeats: 0,
+    });
+    render(<StatsBar />);
+    expect(screen.getByTestId("stats-pct").textContent).toContain("0%");
   });
 });

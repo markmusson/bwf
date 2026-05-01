@@ -25,14 +25,21 @@ export function StadiumExperience() {
   const seats = useQuery(api.seats.list);
   const releaseHold = useMutation(api.holds.release);
 
-  const seatLabel = useMemo<string | null>(() => {
+  const heldSeatStand = useMemo(() => {
     if (!hold || !seats) return null;
     const row = seats.find((s) => s._id === hold.seatId);
     if (!row) return null;
-    const stand = STANDS.find((s) => s.id === row.stand);
+    return { row, stand: STANDS.find((s) => s.id === row.stand) ?? null };
+  }, [hold, seats]);
+
+  const seatLabel = useMemo<string | null>(() => {
+    if (!heldSeatStand) return null;
+    const { row, stand } = heldSeatStand;
     const standName = stand?.name ?? row.stand;
     return `${standName} · Row ${row.row + 1}, Seat ${row.num + 1}`;
-  }, [hold, seats]);
+  }, [heldSeatStand]);
+
+  const suggestedPence = heldSeatStand?.stand?.pricePence;
 
   const closeDonateModal = async () => {
     if (hold && clientHoldId) {
@@ -65,6 +72,7 @@ export function StadiumExperience() {
       <DonateModal
         seatId={donateSeatId}
         seatLabel={seatLabel}
+        suggestedPence={suggestedPence}
         onClose={closeDonateModal}
       />
     </>

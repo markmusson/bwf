@@ -21,6 +21,7 @@ const HOLLIES: Stand = {
   vEnd: 47,
   innerR: 133,
   rows: 13,
+  pricePence: 2_500,
 };
 
 const SINGLE_SEAT_STAND: Stand = {
@@ -32,6 +33,7 @@ const SINGLE_SEAT_STAND: Stand = {
   vEnd: 1,
   innerR: 1,
   rows: 1,
+  pricePence: 1_000,
 };
 
 describe("vToRad", () => {
@@ -99,11 +101,11 @@ describe("buildStandSeats", () => {
     expect(row0).toEqual([...row0.keys()]);
   });
 
-  it("sets every seat's tier and basePricePence to the v1 £10 floor", () => {
+  it("sets every seat's tier and basePricePence from the parent stand", () => {
     const seats = buildStandSeats(HOLLIES);
     for (const seat of seats) {
       expect(seat.tier).toBe("standard");
-      expect(seat.basePricePence).toBe(1000);
+      expect(seat.basePricePence).toBe(2_500);
     }
   });
 
@@ -150,20 +152,19 @@ describe("buildAllSeats", () => {
     expect(maxY).toBeLessThanOrEqual(STADIUM_HEIGHT - margin);
   });
 
-  it("draws every stand-name label inside the canvas with ≥4px breathing room", () => {
-    // Labels render at (CENTER_X + r·cos θ, CENTER_Y + r·sin θ) where
-    // θ is the mid-angle of the stand and r = innerR + rows·10 + 14.
-    // We just check the actual label position lies inside the canvas.
-    const labelHeadroom = 14;
+  it("leaves canvas headroom for the outer ring of every stand band", () => {
+    // The band's outer edge is innerR + rows·10 + 8 (the band fill
+    // padding). Labels are now under-laid inside the band, but we
+    // still need the band itself to fit comfortably inside the canvas.
     const margin = 4;
     for (const stand of STANDS) {
-      const r = stand.innerR + stand.rows * 10 + labelHeadroom;
+      const outer = stand.innerR + stand.rows * 10 + 8;
       const a1 = vToRad(stand.vStart);
       let a2 = vToRad(stand.vEnd);
       if (a2 <= a1) a2 += Math.PI * 2;
       const mid = (a1 + a2) / 2;
-      const x = CENTER_X + r * Math.cos(mid);
-      const y = CENTER_Y + r * Math.sin(mid);
+      const x = CENTER_X + outer * Math.cos(mid);
+      const y = CENTER_Y + outer * Math.sin(mid);
       expect(x).toBeGreaterThanOrEqual(margin);
       expect(x).toBeLessThanOrEqual(STADIUM_WIDTH - margin);
       expect(y).toBeGreaterThanOrEqual(margin);

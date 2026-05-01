@@ -12,17 +12,27 @@ import {
 interface Props {
   seatId: Id<"seats"> | null;
   seatLabel: string | null;
+  /** Suggested donation in pence (defaults to the stand's tier price). */
+  suggestedPence?: number;
   onClose: () => void;
 }
 
-export function DonateModal({ seatId, seatLabel, onClose }: Props) {
+export function DonateModal({
+  seatId,
+  seatLabel,
+  suggestedPence,
+  onClose,
+}: Props) {
+  const initialFormValue: DonateFormValue =
+    suggestedPence !== undefined
+      ? { ...EMPTY_DONATE_FORM_VALUE, amountPence: suggestedPence }
+      : EMPTY_DONATE_FORM_VALUE;
+
   // The donation form / payment phase resets every time a new seat
   // becomes the modal's anchor — `key={seatId}` on the form makes that
   // happen by remounting the component tree. No setState-in-effect.
   const [phase, setPhase] = useState<"form" | "pay">("form");
-  const [collected, setCollected] = useState<DonateFormValue>(
-    EMPTY_DONATE_FORM_VALUE,
-  );
+  const [collected, setCollected] = useState<DonateFormValue>(initialFormValue);
 
   useEffect(() => {
     if (!seatId) return;
