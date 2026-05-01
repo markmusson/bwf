@@ -1,5 +1,14 @@
 # Blue for Bob — Virtual Seats Platform: Functional Design
 
+> **NOTE:** Sections §2 (stack), §3 (seat layout), §8 (stack table) and §9
+> (data model) on this page are SUPERSEDED. Database, auth and realtime
+> moved from Supabase to Convex on 2026-04-30 — see `07-convex-pivot.md`.
+> Seat layout updated 2026-05-01 to the real Edgbaston geometry (7 stands,
+> see `lib/stands.ts`). Multi-claim model (any number of donors per seat)
+> replaces the original exclusivity. Wizard sub-steps and prize-draw
+> separation in §4 + §6 were locked in `04-enthuse-pattern-findings.md`
+> and ARE still current.
+
 **Author:** Mark Musson
 **Date:** 29 April 2026
 **Status:** Draft v1 — for review with Adam Askew (BWF) before development handoff

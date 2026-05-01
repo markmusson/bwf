@@ -387,7 +387,7 @@ export function StadiumCanvas({ onSeatClaimed }: Props) {
         <h2 className="font-display text-xl text-white">
           Claim your virtual seat
         </h2>
-        <p className="mx-auto mt-1 max-w-md text-sm text-white/70">
+        <p className="mx-auto mt-1 max-w-md text-sm text-white/85">
           Click any seat to turn it Blue for Bob. Every seat changes colour when
           claimed. You&apos;re also welcome to make a donation if your seat has
           already gone.
@@ -436,7 +436,7 @@ export function StadiumCanvas({ onSeatClaimed }: Props) {
             </button>
           </>
         ) : (
-          <p className="text-sm text-white/60">
+          <p className="text-sm text-white/80">
             Click a seat on the map to select it.
           </p>
         )}

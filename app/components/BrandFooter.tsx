@@ -22,7 +22,7 @@ export function BrandFooter() {
         href={`https://${BWF.domain}`}
         target="_blank"
         rel="noreferrer"
-        className="text-white/60 hover:text-white"
+        className="text-white/60 underline hover:text-white"
       >
         {BWF.domain}
       </a>{" "}

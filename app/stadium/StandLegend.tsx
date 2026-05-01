@@ -61,7 +61,7 @@ export function StandLegend({ onStandClick }: Props) {
               </span>
               <span
                 data-testid={`stand-count-${stand.id}`}
-                className="relative text-[10px] text-white/55 tabular-nums"
+                className="relative text-[10px] text-white/75 tabular-nums"
               >
                 {stat.taken}/{stat.total}
               </span>

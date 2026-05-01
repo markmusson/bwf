@@ -78,7 +78,7 @@ export function StatsBar() {
               >
                 {cell.value}
               </span>
-              <span className="mt-1 text-[9px] font-semibold tracking-[2px] text-white/60 uppercase">
+              <span className="mt-1 text-[9px] font-semibold tracking-[2px] text-white/80 uppercase">
                 {cell.label}
               </span>
             </div>

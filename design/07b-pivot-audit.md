@@ -1,5 +1,10 @@
 # 07b — Pivot Audit (Supabase → Convex)
 
+> **STATUS: COMPLETED 2026-04-30.** Decisions from this audit are locked
+> into `convex/schema.ts` (see §11 on this page for the additions:
+> giftAidConfirmations, marketingOptIn, marketingConsentRecordedAt, tag).
+> Kept as a historical record. The current spec is `07-convex-pivot.md`.
+
 Inventory of every Supabase touchpoint in the repo as of `main` HEAD plus
 the in-flight stash. Each line cites the section of `07-convex-pivot.md`
 that justifies the call. **No code changes made yet** — awaiting your

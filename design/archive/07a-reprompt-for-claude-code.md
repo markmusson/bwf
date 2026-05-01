@@ -1,3 +1,7 @@
+> **STATUS: ARCHIVED 2026-05-01.** This document is the one-shot prompt
+> used to brief Claude Code on the Convex pivot on 2026-04-30. Kept for
+> historical reference only. The current spec is `design/07-convex-pivot.md`.
+
 # Reprompt for Claude Code — Convex pivot
 
 Paste this into a fresh Claude Code session, or send it as the next instruction in the running one.

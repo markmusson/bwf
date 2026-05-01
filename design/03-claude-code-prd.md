@@ -1,5 +1,20 @@
 # Claude Code Build Spec — BWF Virtual Seats
 
+> **STATUS NOTICE:** This PRD predates the Convex pivot. The following
+> sections are SUPERSEDED — read `07-convex-pivot.md` instead:
+>
+> - §1 stack table (Supabase row → Convex)
+> - §3 environment variables (Supabase keys → Convex / Auth keys; see 07 §12)
+> - §4 SQL schema + migrations (no SQL; see 07 §5 for Convex schema)
+> - §5 REST API contracts (replaced by Convex queries / mutations / actions; see 07 §11)
+> - §8 build sequence (replaced by 07 §14)
+> - §9 #12 acceptance criterion "RLS enabled" (N/A in Convex; auth via `getAuthUserId(ctx)` and `requireAdmin(ctx)` — see `convex/admin.ts`)
+> - §13 testing strategy "RLS tests" bullet (replaced by auth-handler tests in `convex/admin.test.ts`)
+>
+> Sections that REMAIN current: §2 (UX outline), §6 (Stripe webhook semantics
+> — moved to a Convex `httpAction`), §7 (acceptance copy), §10 (no ORM rule),
+> §11 (don't reintroduce Supabase / Prisma), §12 (security baseline).
+
 > **Partial supersession.** The data and auth layer moved to Convex on 2026-04-30. `07-convex-pivot.md` replaces:
 > - `§1` row for Database / Auth (Convex + Convex Auth, not Supabase)
 > - `§3` env block (Convex env replaces all `SUPABASE_*` keys)
