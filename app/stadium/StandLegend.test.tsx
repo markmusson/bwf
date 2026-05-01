@@ -43,6 +43,27 @@ describe("StandLegend", () => {
     expect(screen.getByTestId("stand-tile-hollies")).toHaveTextContent(/400/);
   });
 
+  it("renders tiles that fill their grid row to keep heights uniform", () => {
+    useQueryMock.mockReset();
+    useQueryMock.mockReturnValue({});
+    render(<StandLegend />);
+    for (const stand of [
+      "hollies",
+      "wyatt",
+      "stanley",
+      "south",
+      "west",
+      "priory",
+    ]) {
+      expect(screen.getByTestId(`stand-tile-${stand}`).className).toMatch(
+        /\bh-full\b/,
+      );
+    }
+    expect(screen.getByRole("list", { name: /Stands/i }).className).toMatch(
+      /auto-rows-fr/,
+    );
+  });
+
   it("invokes onStandClick when a tile is interactive and clicked", async () => {
     useQueryMock.mockReset();
     useQueryMock.mockReturnValue({});

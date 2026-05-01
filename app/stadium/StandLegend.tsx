@@ -14,7 +14,7 @@ export function StandLegend({ onStandClick }: Props) {
   return (
     <ul
       aria-label="Stands"
-      className="grid grid-cols-2 gap-2 text-xs text-white/80 sm:grid-cols-3 lg:grid-cols-6"
+      className="grid auto-rows-fr grid-cols-2 gap-2 text-xs text-white/80 sm:grid-cols-3 lg:grid-cols-6"
     >
       {STANDS.map((stand) => {
         const stat = counts?.[stand.id] ?? { taken: 0, total: 0 };
@@ -23,15 +23,15 @@ export function StandLegend({ onStandClick }: Props) {
         const interactive = onStandClick !== undefined;
         const Tag = interactive ? "button" : "div";
         return (
-          <li key={stand.id}>
+          <li key={stand.id} className="h-full">
             <Tag
               type={interactive ? "button" : undefined}
               onClick={interactive ? () => onStandClick?.(stand.id) : undefined}
               data-testid={`stand-tile-${stand.id}`}
-              className="bg-bwf-mid/30 ring-bwf-blue/30 flex w-full flex-col gap-2 rounded-xl p-3 text-left ring-1 transition-colors hover:bg-white/10"
+              className="bg-bwf-mid/30 ring-bwf-blue/30 flex h-full w-full flex-col gap-2 rounded-xl p-3 text-left ring-1 transition-colors hover:bg-white/10"
             >
-              <div className="flex items-baseline justify-between">
-                <span className="text-sm font-semibold text-white">
+              <div className="flex flex-1 items-start">
+                <span className="text-sm leading-tight font-semibold text-white">
                   {stand.name}
                 </span>
               </div>

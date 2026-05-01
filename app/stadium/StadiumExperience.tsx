@@ -52,9 +52,11 @@ export function StadiumExperience() {
       <StatsBar />
       <ProgressBar />
 
-      <section className="bg-bwf-blue px-4 py-6">
-        <div className="mx-auto flex max-w-3xl flex-col gap-5">
-          <StadiumCanvas />
+      <section className="bg-bwf-blue px-4 py-8">
+        <div className="mx-auto flex max-w-3xl flex-col gap-6">
+          <div className="bg-bwf-deep/40 ring-bwf-blue/30 rounded-2xl p-3 ring-1">
+            <StadiumCanvas />
+          </div>
           <SeatStatesKey />
           <StandLegend />
         </div>

@@ -1,7 +1,13 @@
 export const STADIUM_WIDTH = 680;
-export const STADIUM_HEIGHT = 500;
+// 540 instead of 500 so the deepest top stand (Hollies, innerR 133 +
+// 13 rows × 10 + label headroom) and the deepest bottom stand (South,
+// 10 rows) both fit with a few pixels of breathing room.
+export const STADIUM_HEIGHT = 540;
 export const CENTER_X = 340;
-export const CENTER_Y = 252;
+// Hollies (top) reaches further from the centre than South (bottom),
+// so the centre is shifted slightly above mid-canvas to balance the
+// margins on each side.
+export const CENTER_Y = 285;
 export const ROW_SPACING = 10;
 export const SEAT_SPACING = 9;
 export const SEAT_RADIUS = 3.5;

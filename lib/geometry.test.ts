@@ -5,6 +5,8 @@ import {
   buildStandSeats,
   CENTER_X,
   CENTER_Y,
+  STADIUM_HEIGHT,
+  STADIUM_WIDTH,
   vToRad,
   type Stand,
 } from "./geometry";
@@ -132,6 +134,40 @@ describe("buildAllSeats", () => {
     for (const stand of STANDS) {
       const standSeats = seats.filter((s) => s.standId === stand.id);
       expect(standSeats.length).toBeGreaterThan(0);
+    }
+  });
+
+  it("keeps every seat (plus its drawn radius) inside the stadium canvas", () => {
+    const seats = buildAllSeats(STANDS);
+    const margin = 4; // SEAT_RADIUS rounded up; tighter than that risks clipping
+    const minX = Math.min(...seats.map((s) => s.x));
+    const maxX = Math.max(...seats.map((s) => s.x));
+    const minY = Math.min(...seats.map((s) => s.y));
+    const maxY = Math.max(...seats.map((s) => s.y));
+    expect(minX).toBeGreaterThanOrEqual(margin);
+    expect(maxX).toBeLessThanOrEqual(STADIUM_WIDTH - margin);
+    expect(minY).toBeGreaterThanOrEqual(margin);
+    expect(maxY).toBeLessThanOrEqual(STADIUM_HEIGHT - margin);
+  });
+
+  it("draws every stand-name label inside the canvas with ≥4px breathing room", () => {
+    // Labels render at (CENTER_X + r·cos θ, CENTER_Y + r·sin θ) where
+    // θ is the mid-angle of the stand and r = innerR + rows·10 + 14.
+    // We just check the actual label position lies inside the canvas.
+    const labelHeadroom = 14;
+    const margin = 4;
+    for (const stand of STANDS) {
+      const r = stand.innerR + stand.rows * 10 + labelHeadroom;
+      const a1 = vToRad(stand.vStart);
+      let a2 = vToRad(stand.vEnd);
+      if (a2 <= a1) a2 += Math.PI * 2;
+      const mid = (a1 + a2) / 2;
+      const x = CENTER_X + r * Math.cos(mid);
+      const y = CENTER_Y + r * Math.sin(mid);
+      expect(x).toBeGreaterThanOrEqual(margin);
+      expect(x).toBeLessThanOrEqual(STADIUM_WIDTH - margin);
+      expect(y).toBeGreaterThanOrEqual(margin);
+      expect(y).toBeLessThanOrEqual(STADIUM_HEIGHT - margin);
     }
   });
 
