@@ -10,8 +10,18 @@ const STATES: readonly State[] = [
     fill: "rgba(255,255,255,0.18)",
     ring: "rgba(255,255,255,0.35)",
   },
-  { label: "Held — someone's paying", fill: "#fbbf24" },
-  { label: "Yours — taken", fill: "#0085CA" },
+  {
+    label: "Held — someone's paying",
+    fill: "#fbbf24",
+    ring: "rgba(0,0,0,0.25)",
+  },
+  {
+    // Same fill as taken seats on the canvas. The page background is
+    // also BWF blue so the dot needs an outer ring to be visible.
+    label: "Yours — taken",
+    fill: "#0085CA",
+    ring: "rgba(255,255,255,0.65)",
+  },
 ];
 
 export function SeatStatesKey() {
