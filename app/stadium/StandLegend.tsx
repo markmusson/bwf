@@ -38,7 +38,8 @@ export function StandLegend({ onStandClick }: Props) {
               type={interactive ? "button" : undefined}
               onClick={interactive ? () => onStandClick?.(stand.id) : undefined}
               data-testid={`stand-tile-${stand.id}`}
-              className="bg-bwf-mid/30 ring-bwf-blue/30 relative flex items-center gap-2 overflow-hidden rounded-full px-3 py-1.5 ring-1 transition-colors hover:bg-white/10"
+              className="ring-bwf-blue/30 relative flex items-center gap-2 overflow-hidden rounded-full px-4 py-2 ring-1 transition-colors hover:brightness-110"
+              style={{ backgroundColor: "#2E699E" }}
             >
               <span
                 aria-hidden
@@ -54,13 +55,13 @@ export function StandLegend({ onStandClick }: Props) {
               <span className="relative text-white">{stand.name}</span>
               <span
                 data-testid={`stand-price-${stand.id}`}
-                className="text-bwf-gold relative ml-1 font-normal tracking-wider"
+                className="text-bwf-gold relative ml-1 font-bold tracking-[0.5px] uppercase"
               >
                 {formatPrice(stand.pricePence)}
               </span>
               <span
                 data-testid={`stand-count-${stand.id}`}
-                className="relative text-[10px] text-white/50 tabular-nums"
+                className="relative text-[10px] text-white/55 tabular-nums"
               >
                 {stat.taken}/{stat.total}
               </span>

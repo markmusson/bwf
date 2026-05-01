@@ -6,10 +6,10 @@ export function BrandHeader() {
   return (
     <header
       role="banner"
-      className="border-b-[3px] px-5 py-6 text-white"
+      className="border-b-[3px] px-5 py-4 text-white"
       style={{ backgroundColor: "#153A5D", borderBottomColor: "#3A83C5" }}
     >
-      <div className="mx-auto flex max-w-3xl flex-col items-center gap-3 text-center">
+      <div className="mx-auto flex max-w-3xl flex-col items-center gap-2.5 text-center">
         <Link
           href="/stadium"
           aria-label="The Bob Willis Fund — home"
@@ -22,7 +22,7 @@ export function BrandHeader() {
             width={72}
             height={72}
             priority
-            className="h-16 w-16 sm:h-20 sm:w-20"
+            className="h-14 w-14 sm:h-16 sm:w-16"
           />
         </Link>
 
@@ -40,7 +40,7 @@ export function BrandHeader() {
               <li
                 key={pill}
                 className={[
-                  "font-display inline-flex items-center rounded-full px-3 py-1 text-[12px] font-semibold tracking-[0.5px] text-white uppercase",
+                  "font-display inline-flex items-center rounded-full px-4 py-1.5 text-[12px] font-semibold tracking-[0.5px] text-white uppercase",
                   isDonateAccent
                     ? "border-0"
                     : "ring-bwf-blue/40 bg-[rgba(0,133,202,0.2)] ring-1",
