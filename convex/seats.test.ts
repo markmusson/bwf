@@ -11,7 +11,6 @@ const modules = import.meta.glob("./**/*.ts");
 describe("seats.getCard", () => {
   test("returns null for an unknown seat id", async () => {
     const t = convexTest(schema, modules);
-    // Insert + delete to obtain a syntactically valid but missing id.
     const ghost = await t.run((ctx) =>
       ctx.db.insert("seats", {
         stand: "hollies",
@@ -25,7 +24,7 @@ describe("seats.getCard", () => {
     expect(result).toBeNull();
   });
 
-  test("available seat returns seat + null donation + null tribute", async () => {
+  test("available seat returns 0 donors, empty tributes, empty raised", async () => {
     const t = convexTest(schema, modules);
     const seatId = await t.run((ctx) =>
       ctx.db.insert("seats", {
@@ -36,14 +35,19 @@ describe("seats.getCard", () => {
       }),
     );
     const result = await t.query(api.seats.getCard, { seatId });
-    expect(result).toEqual({
-      seat: { stand: "wyatt", row: 2, num: 4, status: "available" },
-      donation: null,
-      tribute: null,
+    expect(result?.seat).toMatchObject({
+      stand: "wyatt",
+      row: 2,
+      num: 4,
+      status: "available",
+      slug: "wyatt-3-5",
     });
+    expect(result?.donors).toBe(0);
+    expect(result?.raisedPence).toBe(0);
+    expect(result?.tributes).toEqual([]);
   });
 
-  test("taken seat with paid donation returns public donation shape + approved tribute", async () => {
+  test("seat with two paid donations + two approved tributes returns both, newest first", async () => {
     const t = convexTest(schema, modules);
     const { seatId } = await t.run(async (ctx) => {
       const seatId = await ctx.db.insert("seats", {
@@ -51,10 +55,12 @@ describe("seats.getCard", () => {
         row: 1,
         num: 7,
         status: "taken" as const,
+        claimedCount: 2,
       });
-      const userId = await ctx.db.insert("users", {});
-      const donationId = await ctx.db.insert("donations", {
-        userId,
+      const userA = await ctx.db.insert("users", {});
+      const userB = await ctx.db.insert("users", {});
+      const donA = await ctx.db.insert("donations", {
+        userId: userA,
         seatId,
         amountPence: 2500,
         currency: "GBP" as const,
@@ -62,37 +68,51 @@ describe("seats.getCard", () => {
         hideName: false,
         hideAmount: false,
         displayName: "Sarah W.",
-        stripeSessionId: "cs_paid",
+        stripeSessionId: "cs_a",
         status: "paid" as const,
       });
-      await ctx.db.patch(seatId, { donationId });
+      const donB = await ctx.db.insert("donations", {
+        userId: userB,
+        seatId,
+        amountPence: 5000,
+        currency: "GBP" as const,
+        giftAid: false,
+        hideName: false,
+        hideAmount: false,
+        displayName: "John D.",
+        stripeSessionId: "cs_b",
+        status: "paid" as const,
+      });
       await ctx.db.insert("tributes", {
-        donationId,
-        text: "For Bob.",
+        donationId: donA,
+        text: "For my dad.",
+        status: "approved" as const,
+      });
+      await ctx.db.insert("tributes", {
+        donationId: donB,
+        text: "Bob was a hero.",
         status: "approved" as const,
       });
       return { seatId };
     });
     const result = await t.query(api.seats.getCard, { seatId });
-    expect(result).toEqual({
-      seat: { stand: "hollies", row: 1, num: 7, status: "taken" },
-      donation: {
-        displayName: "Sarah W.",
-        amountPence: 2500,
-        giftAid: true,
-      },
-      tribute: { text: "For Bob." },
-    });
+    expect(result?.donors).toBe(2);
+    expect(result?.raisedPence).toBe(7500);
+    expect(result?.tributes).toHaveLength(2);
+    // Newest first — donB inserted later so its createdAt > donA.
+    expect(result?.tributes[0]?.text).toBe("Bob was a hero.");
+    expect(result?.tributes[1]?.text).toBe("For my dad.");
   });
 
-  test("hideName forces displayName to null in the public shape", async () => {
+  test("hideName masks the donor's display name in the tribute entry", async () => {
     const t = convexTest(schema, modules);
-    const seatId = await t.run(async (ctx) => {
+    const { seatId } = await t.run(async (ctx) => {
       const seatId = await ctx.db.insert("seats", {
         stand: "hollies",
         row: 0,
         num: 0,
         status: "taken" as const,
+        claimedCount: 1,
       });
       const userId = await ctx.db.insert("users", {});
       const donationId = await ctx.db.insert("donations", {
@@ -104,24 +124,29 @@ describe("seats.getCard", () => {
         hideName: true,
         hideAmount: false,
         displayName: "Sarah W.",
-        stripeSessionId: "cs_paid_hide",
+        stripeSessionId: "cs_anon",
         status: "paid" as const,
       });
-      await ctx.db.patch(seatId, { donationId });
-      return seatId;
+      await ctx.db.insert("tributes", {
+        donationId,
+        text: "anon",
+        status: "approved" as const,
+      });
+      return { seatId };
     });
     const result = await t.query(api.seats.getCard, { seatId });
-    expect(result?.donation?.displayName).toBeNull();
+    expect(result?.tributes[0]?.displayName).toBeNull();
   });
 
-  test("hideAmount forces amountPence to null in the public shape", async () => {
+  test("hideAmount masks the donor's amount in the tribute entry", async () => {
     const t = convexTest(schema, modules);
-    const seatId = await t.run(async (ctx) => {
+    const { seatId } = await t.run(async (ctx) => {
       const seatId = await ctx.db.insert("seats", {
         stand: "hollies",
         row: 0,
         num: 0,
         status: "taken" as const,
+        claimedCount: 1,
       });
       const userId = await ctx.db.insert("users", {});
       const donationId = await ctx.db.insert("donations", {
@@ -133,24 +158,29 @@ describe("seats.getCard", () => {
         hideName: false,
         hideAmount: true,
         displayName: "Sarah W.",
-        stripeSessionId: "cs_paid_hideamt",
+        stripeSessionId: "cs_hide",
         status: "paid" as const,
       });
-      await ctx.db.patch(seatId, { donationId });
-      return seatId;
+      await ctx.db.insert("tributes", {
+        donationId,
+        text: "shy",
+        status: "approved" as const,
+      });
+      return { seatId };
     });
     const result = await t.query(api.seats.getCard, { seatId });
-    expect(result?.donation?.amountPence).toBeNull();
+    expect(result?.tributes[0]?.amountPence).toBeNull();
   });
 
-  test("pending or rejected tribute is not exposed publicly", async () => {
+  test("pending or rejected tributes are excluded from the list", async () => {
     const t = convexTest(schema, modules);
-    const seatId = await t.run(async (ctx) => {
+    const { seatId } = await t.run(async (ctx) => {
       const seatId = await ctx.db.insert("seats", {
         stand: "hollies",
         row: 0,
         num: 0,
         status: "taken" as const,
+        claimedCount: 1,
       });
       const userId = await ctx.db.insert("users", {});
       const donationId = await ctx.db.insert("donations", {
@@ -161,19 +191,21 @@ describe("seats.getCard", () => {
         giftAid: false,
         hideName: false,
         hideAmount: false,
-        stripeSessionId: "cs_paid_nopub",
+        stripeSessionId: "cs_pending",
         status: "paid" as const,
       });
-      await ctx.db.patch(seatId, { donationId });
       await ctx.db.insert("tributes", {
         donationId,
         text: "naughty words",
         status: "pending" as const,
       });
-      return seatId;
+      return { seatId };
     });
     const result = await t.query(api.seats.getCard, { seatId });
-    expect(result?.tribute).toBeNull();
+    expect(result?.tributes).toEqual([]);
+    // The donation still counts toward donors / raised.
+    expect(result?.donors).toBe(1);
+    expect(result?.raisedPence).toBe(1000);
   });
 
   test("getCardBySlug returns the same shape as getCard for a valid coord", async () => {
@@ -184,6 +216,7 @@ describe("seats.getCard", () => {
         row: 0,
         num: 4,
         status: "taken" as const,
+        claimedCount: 1,
       });
       const userId = await ctx.db.insert("users", {});
       const donationId = await ctx.db.insert("donations", {
@@ -198,19 +231,18 @@ describe("seats.getCard", () => {
         stripeSessionId: "cs_slug",
         status: "paid" as const,
       });
-      await ctx.db.patch(seatId, { donationId });
+      await ctx.db.insert("tributes", {
+        donationId,
+        text: "slug round-trip",
+        status: "approved" as const,
+      });
     });
 
     const result = await t.query(api.seats.getCardBySlug, {
       slug: "wyatt-1-5",
     });
-    expect(result?.seat).toEqual({
-      stand: "wyatt",
-      row: 0,
-      num: 4,
-      status: "taken",
-    });
-    expect(result?.donation?.displayName).toBe("Sarah W.");
+    expect(result?.seat.slug).toBe("wyatt-1-5");
+    expect(result?.tributes[0]?.displayName).toBe("Sarah W.");
   });
 
   test("getCardBySlug returns null for a malformed slug", async () => {
@@ -226,33 +258,5 @@ describe("seats.getCard", () => {
     expect(
       await t.query(api.seats.getCardBySlug, { slug: "hollies-99-99" }),
     ).toBeNull();
-  });
-
-  test("seat marked taken but donation pending (race) returns donation:null", async () => {
-    const t = convexTest(schema, modules);
-    const seatId = await t.run(async (ctx) => {
-      const seatId = await ctx.db.insert("seats", {
-        stand: "hollies",
-        row: 0,
-        num: 0,
-        status: "taken" as const,
-      });
-      const userId = await ctx.db.insert("users", {});
-      const donationId = await ctx.db.insert("donations", {
-        userId,
-        seatId,
-        amountPence: 1000,
-        currency: "GBP" as const,
-        giftAid: false,
-        hideName: false,
-        hideAmount: false,
-        stripeSessionId: "cs_pending",
-        status: "pending" as const,
-      });
-      await ctx.db.patch(seatId, { donationId });
-      return seatId;
-    });
-    const result = await t.query(api.seats.getCard, { seatId });
-    expect(result?.donation).toBeNull();
   });
 });

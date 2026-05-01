@@ -27,7 +27,7 @@ export function AppNav() {
       aria-label="Primary"
       className="bg-bwf-navy/95 border-bwf-blue/30 border-b text-white"
     >
-      <div className="relative mx-auto flex max-w-3xl items-center justify-center px-5 py-2">
+      <div className="relative mx-auto flex max-w-3xl items-center justify-center px-5 py-3">
         <ul className="font-display flex items-center gap-2 text-[12px] tracking-[2px] uppercase">
           {primary.map((item) => {
             const active = pathname === item.href;

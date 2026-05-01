@@ -7,12 +7,14 @@ import { consumeRateLimit, RATE_LIMITS } from "./rateLimit";
 
 // Per 07 §10: prizeEntries are NEVER inserted from a donation flow.
 // This mutation is the only path that adds a row to the table. Donor
-// must (a) be authenticated, (b) own the donation, (c) the donation
+// must EITHER (a) be signed in and own the donation, OR (b) supply
+// the matching clientHoldId from the browser that paid. The donation
 // must be paid. Idempotent — re-clicking returns the existing entry id.
 
 export interface OptInArgs {
   donationId: Id<"donations">;
-  userId: Id<"users">;
+  userId?: Id<"users">;
+  clientHoldId?: string;
 }
 
 export interface OptInResult {
@@ -26,7 +28,16 @@ export async function _optInForTest(
 ): Promise<OptInResult> {
   const donation = await ctx.db.get(args.donationId);
   if (!donation) throw new ConvexError("donation_not_found");
-  if (donation.userId !== args.userId) throw new ConvexError("forbidden");
+
+  const userMatches = args.userId && donation.userId === args.userId;
+  const clientMatches =
+    args.clientHoldId &&
+    args.clientHoldId.length >= 8 &&
+    donation.clientHoldId === args.clientHoldId;
+  if (!userMatches && !clientMatches) {
+    throw new ConvexError(args.userId ? "forbidden" : "unauthenticated");
+  }
+
   if (donation.status !== "paid") throw new ConvexError("donation_not_paid");
 
   await consumeRateLimit(
@@ -43,20 +54,34 @@ export async function _optInForTest(
     return { entryId: existing._id, alreadyEntered: true };
   }
 
+  // userId on the prizeEntry comes from the donation (set by the
+  // webhook from Stripe customer email), so even a clientHoldId-only
+  // opt-in records a real user reference for the audit trail.
+  const userId = donation.userId;
+  if (!userId) {
+    throw new ConvexError("donation_user_missing");
+  }
+
   const entryId = await ctx.db.insert("prizeEntries", {
     donationId: args.donationId,
-    userId: args.userId,
+    userId,
     method: "online" as const,
   });
   return { entryId, alreadyEntered: false };
 }
 
 export const optIn = mutation({
-  args: { donationId: v.id("donations") },
-  handler: async (ctx, { donationId }) => {
-    const userId = await getAuthUserId(ctx);
-    if (!userId) throw new ConvexError("unauthenticated");
-    return await _optInForTest(ctx, { donationId, userId });
+  args: {
+    donationId: v.id("donations"),
+    clientHoldId: v.optional(v.string()),
+  },
+  handler: async (ctx, { donationId, clientHoldId }) => {
+    const userId = (await getAuthUserId(ctx)) ?? undefined;
+    return await _optInForTest(ctx, {
+      donationId,
+      userId,
+      clientHoldId,
+    });
   },
 });
 

@@ -79,38 +79,81 @@ export const update = mutation({
   },
 });
 
-// Public — approved tributes for the /wall page. Bounded at 200 most
-// recent; pagination lands when we outgrow that.
+// Public — approved tributes for the /wall page. Grouped by seat so a
+// seat with N donors and M tributes shows as ONE card on the wall.
+// Empty-tribute donations don't surface here (they still count toward
+// the seat's claimedCount on the canvas). Bounded at 500 most recent
+// approved tributes; pagination lands when we outgrow that.
 export const listApproved = query({
   args: {},
   handler: async (ctx) => {
-    const tributes = await ctx.db
+    const approved = await ctx.db
       .query("tributes")
       .withIndex("by_status", (q) => q.eq("status", "approved"))
       .order("desc")
-      .take(200);
+      .take(500);
 
-    const result: Array<{
+    type TributeEntry = {
       tributeId: Id<"tributes">;
       text: string;
       createdAt: number;
       displayName: string | null;
-      seat: { stand: string; row: number; num: number } | null;
-    }> = [];
+    };
+    type SeatGroup = {
+      seatId: Id<"seats">;
+      seat: { stand: string; row: number; num: number; slug: string };
+      donors: number;
+      raisedPence: number;
+      tributes: TributeEntry[];
+      latestAt: number;
+    };
 
-    for (const tribute of tributes) {
+    const groups = new Map<Id<"seats">, SeatGroup>();
+
+    for (const tribute of approved) {
       const donation = await ctx.db.get(tribute.donationId);
       if (!donation || donation.status !== "paid") continue;
-      const seat = donation.seatId ? await ctx.db.get(donation.seatId) : null;
-      result.push({
+      if (!donation.seatId) continue;
+
+      let group = groups.get(donation.seatId);
+      if (!group) {
+        const seatRow = await ctx.db.get(donation.seatId);
+        if (!seatRow) continue;
+        group = {
+          seatId: seatRow._id,
+          seat: {
+            stand: seatRow.stand,
+            row: seatRow.row,
+            num: seatRow.num,
+            slug: `${seatRow.stand}-${seatRow.row + 1}-${seatRow.num + 1}`,
+          },
+          donors: seatRow.claimedCount ?? 0,
+          raisedPence: 0,
+          tributes: [],
+          latestAt: 0,
+        };
+        groups.set(donation.seatId, group);
+      }
+
+      group.tributes.push({
         tributeId: tribute._id,
         text: tribute.text,
         createdAt: tribute._creationTime,
         displayName: donation.hideName ? null : (donation.displayName ?? null),
-        seat: seat ? { stand: seat.stand, row: seat.row, num: seat.num } : null,
       });
+      group.raisedPence += donation.amountPence;
+      if (tribute._creationTime > group.latestAt) {
+        group.latestAt = tribute._creationTime;
+      }
     }
 
+    // Sort each group's tributes newest-first, then sort groups by
+    // their most recent tribute.
+    const result = Array.from(groups.values());
+    for (const group of result) {
+      group.tributes.sort((a, b) => b.createdAt - a.createdAt);
+    }
+    result.sort((a, b) => b.latestAt - a.latestAt);
     return result;
   },
 });

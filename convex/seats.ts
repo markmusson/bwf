@@ -118,47 +118,64 @@ export const getMinimumPenceForSeat = query({
   },
 });
 
-// Public read for /seat/<slug> share cards. Returns a deliberately
-// narrow shape — the donor's display name, amount, and Gift Aid flag
-// are exposed only when the donor has not opted out via hideName /
-// hideAmount, and tributes are only returned once moderation has
-// approved them. Pending donations (paid via webhook race) and
-// non-existent seats both return safely.
+// Public read for /seat/<slug> share cards. Returns the seat plus
+// EVERY approved tribute attached to its paid donations, newest first,
+// each annotated with display name and amount unless the donor opted
+// out via hideName / hideAmount. Empty-tribute donations contribute to
+// the donor count + raisedPence but don't surface as cards.
 async function buildSeatCard(ctx: QueryCtx, seat: Doc<"seats">) {
   const seatPublic = {
     stand: seat.stand,
     row: seat.row,
     num: seat.num,
     status: seat.status,
+    slug: `${seat.stand}-${seat.row + 1}-${seat.num + 1}`,
+    donors: seat.claimedCount ?? 0,
   };
 
-  if (!seat.donationId) {
-    return { seat: seatPublic, donation: null, tribute: null };
+  // Pull every paid donation attached to this seat, then attach
+  // approved tributes inline.
+  const donations = await ctx.db
+    .query("donations")
+    .filter((q) => q.eq(q.field("seatId"), seat._id))
+    .collect();
+  const paid = donations.filter((d) => d.status === "paid");
+
+  let raisedPence = 0;
+  const tributes: Array<{
+    tributeId: string;
+    text: string;
+    createdAt: number;
+    displayName: string | null;
+    amountPence: number | null;
+    giftAid: boolean;
+  }> = [];
+
+  for (const donation of paid) {
+    raisedPence += donation.amountPence;
+    const tribute = await ctx.db
+      .query("tributes")
+      .filter((q) => q.eq(q.field("donationId"), donation._id))
+      .first();
+    if (tribute && tribute.status === "approved") {
+      tributes.push({
+        tributeId: tribute._id,
+        text: tribute.text,
+        createdAt: tribute._creationTime,
+        displayName: donation.hideName ? null : (donation.displayName ?? null),
+        amountPence: donation.hideAmount ? null : donation.amountPence,
+        giftAid: donation.giftAid,
+      });
+    }
   }
 
-  const donation = await ctx.db.get(seat.donationId);
-  if (!donation || donation.status !== "paid") {
-    return { seat: seatPublic, donation: null, tribute: null };
-  }
-
-  const donationPublic = {
-    displayName: donation.hideName ? null : (donation.displayName ?? null),
-    amountPence: donation.hideAmount ? null : donation.amountPence,
-    giftAid: donation.giftAid,
-  };
-
-  const tribute = await ctx.db
-    .query("tributes")
-    .filter((q) => q.eq(q.field("donationId"), donation._id))
-    .first();
-
-  const tributePublic =
-    tribute && tribute.status === "approved" ? { text: tribute.text } : null;
+  tributes.sort((a, b) => b.createdAt - a.createdAt);
 
   return {
     seat: seatPublic,
-    donation: donationPublic,
-    tribute: tributePublic,
+    donors: paid.length,
+    raisedPence,
+    tributes,
   };
 }
 

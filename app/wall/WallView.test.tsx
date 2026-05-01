@@ -14,22 +14,45 @@ vi.mock("@/convex/_generated/api", () => ({
 
 import { WallView } from "./WallView";
 
-const SAMPLE = [
-  {
-    tributeId: "t_1",
-    text: "For my dad — Bob's legacy lives on.",
-    createdAt: 0,
-    displayName: "Sarah W.",
-    seat: { stand: "hollies", row: 3, num: 12 },
-  },
-  {
-    tributeId: "t_2",
-    text: "Best fast bowler England ever produced.",
-    createdAt: 0,
-    displayName: null,
-    seat: { stand: "wyatt", row: 0, num: 5 },
-  },
-];
+const HOLLIES_GROUP = {
+  seatId: "s_1",
+  seat: { stand: "hollies", row: 2, num: 11, slug: "hollies-3-12" },
+  donors: 2,
+  raisedPence: 5000,
+  latestAt: 200,
+  tributes: [
+    {
+      tributeId: "t_2",
+      text: "Bob was a hero of mine.",
+      createdAt: 200,
+      displayName: "John D.",
+    },
+    {
+      tributeId: "t_1",
+      text: "For my dad — Bob's legacy lives on.",
+      createdAt: 100,
+      displayName: "Sarah W.",
+    },
+  ],
+};
+
+const WYATT_GROUP = {
+  seatId: "s_2",
+  seat: { stand: "wyatt", row: 0, num: 4, slug: "wyatt-1-5" },
+  donors: 1,
+  raisedPence: 1000,
+  latestAt: 150,
+  tributes: [
+    {
+      tributeId: "t_3",
+      text: "Best fast bowler England ever produced.",
+      createdAt: 150,
+      displayName: null,
+    },
+  ],
+};
+
+const SAMPLE = [HOLLIES_GROUP, WYATT_GROUP];
 
 describe("WallView", () => {
   it("subscribes to api.tributes.listApproved", () => {
@@ -55,18 +78,31 @@ describe("WallView", () => {
     ).toBeInTheDocument();
   });
 
-  it("renders each tribute with display name (or Anonymous) and seat label", () => {
+  it("renders one card per seat with all approved tributes nested", () => {
     useQueryMock.mockReset();
     useQueryMock.mockReturnValue(SAMPLE);
     render(<WallView />);
-    expect(screen.getByTestId("tribute-t_1")).toHaveTextContent("Sarah W.");
-    expect(screen.getByTestId("tribute-t_1")).toHaveTextContent(
-      /Eric Hollies Stand · Row 4, Seat 13/,
+    const holliesCard = screen.getByTestId("seat-group-s_1");
+    expect(holliesCard).toHaveTextContent(
+      /Eric Hollies Stand · Row 3, Seat 12/,
     );
-    expect(screen.getByTestId("tribute-t_2")).toHaveTextContent("Anonymous");
-    expect(screen.getByTestId("tribute-t_2")).toHaveTextContent(
-      /Wyatt Stand · Row 1, Seat 6/,
-    );
+    expect(holliesCard).toHaveTextContent(/2 donors/);
+    expect(holliesCard).toHaveTextContent(/2 tributes/);
+    expect(holliesCard).toHaveTextContent("John D.");
+    expect(holliesCard).toHaveTextContent("Sarah W.");
+
+    const wyattCard = screen.getByTestId("seat-group-s_2");
+    expect(wyattCard).toHaveTextContent(/Wyatt Stand · Row 1, Seat 5/);
+    expect(wyattCard).toHaveTextContent("Anonymous");
+  });
+
+  it("links every seat header to /seat/<slug>", () => {
+    useQueryMock.mockReset();
+    useQueryMock.mockReturnValue(SAMPLE);
+    render(<WallView />);
+    expect(
+      screen.getByRole("link", { name: /Eric Hollies Stand · Row 3, Seat 12/ }),
+    ).toHaveAttribute("href", "/seat/hollies-3-12");
   });
 
   it("filters by search term across text, display name, and stand id", async () => {
@@ -77,12 +113,12 @@ describe("WallView", () => {
 
     const search = screen.getByLabelText(/Search/i);
     await user.type(search, "wyatt");
-    expect(screen.queryByTestId("tribute-t_1")).not.toBeInTheDocument();
-    expect(screen.getByTestId("tribute-t_2")).toBeInTheDocument();
+    expect(screen.queryByTestId("seat-group-s_1")).not.toBeInTheDocument();
+    expect(screen.getByTestId("seat-group-s_2")).toBeInTheDocument();
 
     await user.clear(search);
     await user.type(search, "sarah");
-    expect(screen.getByTestId("tribute-t_1")).toBeInTheDocument();
-    expect(screen.queryByTestId("tribute-t_2")).not.toBeInTheDocument();
+    expect(screen.getByTestId("seat-group-s_1")).toBeInTheDocument();
+    expect(screen.queryByTestId("seat-group-s_2")).not.toBeInTheDocument();
   });
 });

@@ -4,32 +4,35 @@ import { useQuery } from "convex/react";
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import { api } from "@/convex/_generated/api";
-import { formatSeatSlug } from "@/lib/seatSlug";
 import { STANDS } from "@/lib/stands";
 
-function describeSeat(
-  seat: { stand: string; row: number; num: number } | null,
-): string {
-  if (!seat) return "Seat pending";
+function describeSeat(seat: {
+  stand: string;
+  row: number;
+  num: number;
+}): string {
   const stand = STANDS.find((s) => s.id === seat.stand);
   return `${stand?.name ?? seat.stand} · Row ${seat.row + 1}, Seat ${seat.num + 1}`;
 }
 
 export function WallView() {
-  const tributes = useQuery(api.tributes.listApproved);
+  const groups = useQuery(api.tributes.listApproved);
   const [search, setSearch] = useState("");
 
   const filtered = useMemo(() => {
-    if (!tributes) return [];
+    if (!groups) return [];
     const needle = search.trim().toLowerCase();
-    if (!needle) return tributes;
-    return tributes.filter((t) => {
-      const haystack = [t.text, t.displayName ?? "", t.seat?.stand ?? ""]
-        .join(" ")
-        .toLowerCase();
-      return haystack.includes(needle);
+    if (!needle) return groups;
+    // Any-of search: a seat appears if ANY of its tributes (or names),
+    // or the stand id itself, contains the needle.
+    return groups.filter((g) => {
+      if (g.seat.stand.toLowerCase().includes(needle)) return true;
+      if (g.seat.slug.toLowerCase().includes(needle)) return true;
+      return g.tributes.some((t) =>
+        [t.text, t.displayName ?? ""].join(" ").toLowerCase().includes(needle),
+      );
     });
-  }, [tributes, search]);
+  }, [groups, search]);
 
   return (
     <section
@@ -42,8 +45,7 @@ export function WallView() {
         </p>
         <h1 className="font-display text-4xl">Tributes for Bob</h1>
         <p className="text-sm text-white/75">
-          Every tribute left by a donor at Edgbaston, in order. Want to add
-          yours?{" "}
+          Every approved tribute, grouped by seat. Newest first.{" "}
           <Link href="/stadium" className="underline hover:text-white">
             Pick a seat.
           </Link>
@@ -63,7 +65,7 @@ export function WallView() {
         />
       </label>
 
-      {tributes === undefined ? (
+      {groups === undefined ? (
         <p
           className="text-center text-sm text-white/70"
           data-testid="wall-loading"
@@ -72,34 +74,49 @@ export function WallView() {
         </p>
       ) : filtered.length === 0 ? (
         <p className="text-center text-sm text-white/70">
-          {tributes.length === 0
+          {groups.length === 0
             ? "No tributes have been published yet. Be the first."
             : "No tributes match that search."}
         </p>
       ) : (
-        <ul className="flex flex-col gap-3">
-          {filtered.map((tribute) => (
+        <ul className="flex flex-col gap-4">
+          {filtered.map((group) => (
             <li
-              key={tribute.tributeId}
-              data-testid={`tribute-${tribute.tributeId}`}
-              className="bg-bwf-navy ring-bwf-blue/30 flex flex-col gap-2 rounded-xl p-4 ring-1"
+              key={group.seatId}
+              data-testid={`seat-group-${group.seatId}`}
+              className="bg-bwf-navy ring-bwf-blue/30 flex flex-col gap-3 rounded-xl p-4 ring-1"
             >
-              <div className="flex flex-wrap items-baseline justify-between gap-3 text-xs text-white/60">
-                <span className="font-display tracking-widest uppercase">
-                  {tribute.displayName ?? "Anonymous"}
+              <div className="flex flex-wrap items-baseline justify-between gap-3 text-xs text-white/65">
+                <Link
+                  href={`/seat/${group.seat.slug}`}
+                  className="font-display tracking-widest text-white uppercase hover:text-white"
+                >
+                  {describeSeat(group.seat)}
+                </Link>
+                <span>
+                  {group.donors === 1 ? "1 donor" : `${group.donors} donors`}
+                  {group.tributes.length > 1
+                    ? ` · ${group.tributes.length} tributes`
+                    : ""}
                 </span>
-                {tribute.seat ? (
-                  <Link
-                    href={`/seat/${formatSeatSlug(tribute.seat)}`}
-                    className="hover:text-white"
-                  >
-                    {describeSeat(tribute.seat)}
-                  </Link>
-                ) : (
-                  <span>{describeSeat(tribute.seat)}</span>
-                )}
               </div>
-              <p className="text-base text-white">{tribute.text}</p>
+
+              <ul className="divide-bwf-blue/15 flex flex-col divide-y">
+                {group.tributes.map((tribute) => (
+                  <li
+                    key={tribute.tributeId}
+                    data-testid={`tribute-${tribute.tributeId}`}
+                    className="flex flex-col gap-1 py-2 first:pt-0 last:pb-0"
+                  >
+                    <span className="font-display text-bwf-pale text-[10px] tracking-[1.5px] uppercase">
+                      {tribute.displayName ?? "Anonymous"}
+                    </span>
+                    <p className="text-[15px] leading-snug text-white">
+                      {tribute.text}
+                    </p>
+                  </li>
+                ))}
+              </ul>
             </li>
           ))}
         </ul>

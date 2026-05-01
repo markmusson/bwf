@@ -59,7 +59,8 @@ export function SeatCard({ slug }: CardProps) {
 
   const seatLabel = describeSeat(card.seat);
 
-  if (!card.donation) {
+  // Unclaimed seat — no donations, no tributes.
+  if (card.donors === 0) {
     return (
       <section className="bg-bwf-blue mx-auto flex max-w-2xl flex-col gap-6 px-6 py-12 text-center text-white">
         <p className="text-bwf-pale text-xs tracking-widest uppercase">
@@ -73,46 +74,61 @@ export function SeatCard({ slug }: CardProps) {
           href="/stadium"
           className="bg-bwf-pale text-bwf-navy font-display mx-auto rounded-full px-5 py-2 text-sm tracking-wider uppercase"
         >
-          Claim a seat
+          Claim this seat
         </Link>
       </section>
     );
   }
-
-  const displayName = card.donation.displayName ?? "Anonymous";
-  const amountLabel =
-    card.donation.amountPence !== null
-      ? formatGBP(card.donation.amountPence)
-      : null;
 
   return (
     <section
       className="bg-bwf-blue mx-auto flex max-w-2xl flex-col gap-6 px-6 py-12 text-white"
       data-testid="seat-card"
     >
-      <header className="flex flex-col gap-1 text-center">
+      <header className="flex flex-col gap-2 text-center">
         <p className="text-bwf-pale text-xs tracking-widest uppercase">
           {seatLabel}
         </p>
         <h1 className="font-display text-3xl">A seat turned blue for Bob</h1>
+        <p className="text-sm text-white/70">
+          {card.donors === 1 ? "1 donor" : `${card.donors} donors`} ·{" "}
+          {formatGBP(card.raisedPence)} raised on this seat
+        </p>
       </header>
 
-      <div className="bg-bwf-navy ring-bwf-blue/30 flex flex-col gap-3 rounded-2xl p-6 ring-1">
-        <div className="flex flex-wrap items-baseline justify-between gap-3">
-          <span className="font-display text-lg">{displayName}</span>
-          {amountLabel ? (
-            <span className="text-bwf-pale text-sm">
-              {amountLabel}
-              {card.donation.giftAid ? " · Gift Aid" : ""}
-            </span>
-          ) : null}
-        </div>
-        {card.tribute ? (
-          <p className="text-base text-white/90" data-testid="seat-tribute">
-            {card.tribute.text}
-          </p>
-        ) : null}
-      </div>
+      {card.tributes.length === 0 ? (
+        <p className="text-center text-sm text-white/60">
+          No tribute messages on this seat yet.
+        </p>
+      ) : (
+        <ul
+          className="bg-bwf-navy ring-bwf-blue/30 divide-bwf-blue/15 flex flex-col divide-y rounded-2xl p-5 ring-1"
+          data-testid="seat-tributes"
+        >
+          {card.tributes.map((tribute) => (
+            <li
+              key={tribute.tributeId}
+              data-testid={`seat-tribute-${tribute.tributeId}`}
+              className="flex flex-col gap-1 py-3 first:pt-0 last:pb-0"
+            >
+              <div className="flex flex-wrap items-baseline justify-between gap-3">
+                <span className="font-display text-base">
+                  {tribute.displayName ?? "Anonymous"}
+                </span>
+                {tribute.amountPence !== null ? (
+                  <span className="text-bwf-pale text-xs tracking-wider">
+                    {formatGBP(tribute.amountPence)}
+                    {tribute.giftAid ? " · Gift Aid" : ""}
+                  </span>
+                ) : null}
+              </div>
+              <p className="text-[15px] leading-snug text-white/90">
+                {tribute.text}
+              </p>
+            </li>
+          ))}
+        </ul>
+      )}
 
       <div className="flex flex-wrap justify-center gap-3">
         <Link
