@@ -34,14 +34,25 @@ export function BrandHeader() {
           className="flex flex-wrap items-center justify-center gap-2"
           aria-label="Match information"
         >
-          {BWF.campaign.matchPills.map((pill) => (
-            <li
-              key={pill}
-              className="font-display ring-bwf-blue/40 inline-flex items-center rounded-full bg-[rgba(0,133,202,0.2)] px-3 py-1 text-[12px] font-semibold tracking-[0.5px] text-white uppercase ring-1"
-            >
-              {pill}
-            </li>
-          ))}
+          {BWF.campaign.matchPills.map((pill) => {
+            const isDonateAccent = pill === "ODI · Summer 2026";
+            return (
+              <li
+                key={pill}
+                className={[
+                  "font-display inline-flex items-center rounded-full px-3 py-1 text-[12px] font-semibold tracking-[0.5px] text-white uppercase",
+                  isDonateAccent
+                    ? "border-0"
+                    : "ring-bwf-blue/40 bg-[rgba(0,133,202,0.2)] ring-1",
+                ].join(" ")}
+                style={
+                  isDonateAccent ? { backgroundColor: "#3A83C5" } : undefined
+                }
+              >
+                {pill}
+              </li>
+            );
+          })}
         </ul>
       </div>
     </header>
