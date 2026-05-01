@@ -2,7 +2,6 @@
 
 import { useMutation, useQuery } from "convex/react";
 import { ConvexError } from "convex/values";
-import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState, type MouseEvent } from "react";
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
@@ -20,8 +19,8 @@ import {
 } from "@/lib/geometry";
 import { STANDS } from "@/lib/stands";
 
-type SeatStatus = "available" | "taken";
-type VisualStatus = "available" | "held" | "taken";
+// once = exactly one donor; multi = two or more.
+type VisualStatus = "available" | "held" | "once" | "multi";
 
 interface Props {
   /**
@@ -34,7 +33,8 @@ interface Props {
 const STAND_FILL_BASE = "#001e3c";
 const SEAT_AVAILABLE = "rgba(255,255,255,0.18)";
 const SEAT_HELD = "#fbbf24";
-const SEAT_TAKEN = "#0085ca";
+const SEAT_ONCE = "#0085ca";
+const SEAT_MULTI = "#ffffff";
 const SEAT_HOVER = "rgba(255,255,255,0.55)";
 const SEAT_SELECTED = "#ffffff";
 
@@ -42,16 +42,19 @@ function statusKey(stand: string, row: number, num: number): string {
   return `${stand}:${row}:${num}`;
 }
 
-function visualForSeat(status: SeatStatus, isHeld: boolean): VisualStatus {
-  if (status === "taken") return "taken";
+function visualForSeat(claimedCount: number, isHeld: boolean): VisualStatus {
+  if (claimedCount >= 2) return "multi";
+  if (claimedCount === 1) return "once";
   if (isHeld) return "held";
   return "available";
 }
 
 function fillForVisual(visual: VisualStatus): string {
   switch (visual) {
-    case "taken":
-      return SEAT_TAKEN;
+    case "multi":
+      return SEAT_MULTI;
+    case "once":
+      return SEAT_ONCE;
     case "held":
       return SEAT_HELD;
     case "available":
@@ -62,7 +65,7 @@ function fillForVisual(visual: VisualStatus): string {
 function drawStadium(
   ctx: CanvasRenderingContext2D,
   layout: readonly Seat[],
-  statusByKey: ReadonlyMap<string, SeatStatus>,
+  countByKey: ReadonlyMap<string, number>,
   heldKeys: ReadonlySet<string>,
   hovered: Seat | null,
   selected: Seat | null,
@@ -146,17 +149,21 @@ function drawStadium(
 
   // Seats
   for (const seat of layout) {
-    const status =
-      statusByKey.get(statusKey(seat.standId, seat.rowIndex, seat.colIndex)) ??
-      "available";
-    const isHeld = heldKeys.has(
-      statusKey(seat.standId, seat.rowIndex, seat.colIndex),
-    );
-    const visual = visualForSeat(status, isHeld);
+    const key = statusKey(seat.standId, seat.rowIndex, seat.colIndex);
+    const count = countByKey.get(key) ?? 0;
+    const isHeld = heldKeys.has(key);
+    const visual = visualForSeat(count, isHeld);
     ctx.beginPath();
     ctx.arc(seat.x, seat.y, SEAT_RADIUS, 0, Math.PI * 2);
     ctx.fillStyle = fillForVisual(visual);
     ctx.fill();
+    // Multi-claim seats get a thin BWF-blue ring to call out the
+    // "claimed multiple times" state.
+    if (visual === "multi") {
+      ctx.strokeStyle = "rgba(0,133,202,0.7)";
+      ctx.lineWidth = 1;
+      ctx.stroke();
+    }
   }
 
   // Hover highlight
@@ -219,15 +226,15 @@ export function StadiumCanvas({ onSeatClaimed }: Props) {
   const seatRows = useQuery(api.seats.list);
   const heldIds = useQuery(api.holds.activeSeatIds);
   const claimSeat = useMutation(api.holds.claim);
-  const router = useRouter();
   const clientHoldId = useClientHoldId();
 
   const layout = useMemo(() => buildAllSeats(STANDS), []);
 
-  const statusByKey = useMemo(() => {
-    const map = new Map<string, SeatStatus>();
+  const countByKey = useMemo(() => {
+    const map = new Map<string, number>();
     for (const seat of seatRows ?? []) {
-      map.set(statusKey(seat.stand, seat.row, seat.num), seat.status);
+      const count = seat.claimedCount ?? (seat.status === "taken" ? 1 : 0);
+      map.set(statusKey(seat.stand, seat.row, seat.num), count);
     }
     return map;
   }, [seatRows]);
@@ -278,7 +285,7 @@ export function StadiumCanvas({ onSeatClaimed }: Props) {
       drawStadium(
         ctx,
         layout,
-        statusByKey,
+        countByKey,
         heldKeys,
         hovered,
         selected,
@@ -290,7 +297,7 @@ export function StadiumCanvas({ onSeatClaimed }: Props) {
     draw();
     window.addEventListener("resize", draw);
     return () => window.removeEventListener("resize", draw);
-  }, [layout, statusByKey, heldKeys, hovered, selected]);
+  }, [layout, countByKey, heldKeys, hovered, selected]);
 
   const onCanvasMove = (event: MouseEvent<HTMLCanvasElement>) => {
     const canvas = canvasRef.current;
@@ -326,20 +333,11 @@ export function StadiumCanvas({ onSeatClaimed }: Props) {
     const x = (event.clientX - rect.left) / scale;
     const y = (event.clientY - rect.top) / scale;
     const hit = findSeatAt(layout, x, y);
-    if (hit) {
-      const status = statusByKey.get(
-        statusKey(hit.standId, hit.rowIndex, hit.colIndex),
-      );
-      if (status === "taken") {
-        // Click-through to the public share card. The donate flow
-        // never starts on a taken seat — that's a dead end UX.
-        router.push(
-          `/seat/${hit.standId}-${hit.rowIndex + 1}-${hit.colIndex + 1}`,
-        );
-        return;
-      }
-      setError(null);
-    }
+    if (hit) setError(null);
+    // Multi-claim: every seat is claimable (any number of donors per
+    // seat), so the click always opens the donate flow. The "claimed
+    // once / multiple times" colour signals existing donors but never
+    // gates the action.
     setSelected(hit);
   };
 
@@ -374,8 +372,10 @@ export function StadiumCanvas({ onSeatClaimed }: Props) {
   const tooltipStatus = (() => {
     if (!hovered) return null;
     const key = statusKey(hovered.standId, hovered.rowIndex, hovered.colIndex);
-    if (heldKeys.has(key)) return "Held — someone's paying";
-    if (statusByKey.get(key) === "taken") return "Taken";
+    const count = countByKey.get(key) ?? 0;
+    if (heldKeys.has(key) && count === 0) return "Held — someone's paying";
+    if (count >= 2) return `${count} donors`;
+    if (count === 1) return "Claimed once";
     const stand = STANDS.find((s) => s.id === hovered.standId);
     const price = stand ? `£${Math.round(stand.pricePence / 100)}` : "£10";
     return `From ${price}`;

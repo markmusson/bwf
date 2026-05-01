@@ -11,11 +11,17 @@ import { v } from "convex/values";
 export default defineSchema({
   ...authTables,
 
+  // Multi-claim seats: every seat can be claimed by any number of
+  // donors. claimedCount is incremented at markPaid time. The canvas
+  // colours seats by count: 0 → available, 1 → claimed once (blue),
+  // ≥2 → claimed multiple times (white). status is kept as a derived
+  // field (count > 0 → "taken") so legacy queries / index work.
   seats: defineTable({
     stand: v.string(),
     row: v.number(),
     num: v.number(),
     status: v.union(v.literal("available"), v.literal("taken")),
+    claimedCount: v.optional(v.number()),
     donationId: v.optional(v.id("donations")),
   })
     .index("by_coord", ["stand", "row", "num"])

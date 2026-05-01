@@ -199,7 +199,7 @@ describe("StadiumCanvas", () => {
     restore();
   });
 
-  it("navigates to /seat/<slug> when the donor clicks a TAKEN seat", async () => {
+  it("multi-claim: clicking a TAKEN seat selects it for re-donation, not a route push", async () => {
     const seats = rowsCoveringHollies().map((row, idx) =>
       idx === 0 ? { ...row, status: "taken" as const } : row,
     );
@@ -215,8 +215,9 @@ describe("StadiumCanvas", () => {
       coords: { x: SAMPLE_SEAT.x, y: SAMPLE_SEAT.y },
     });
 
-    expect(routerPush).toHaveBeenCalledWith(
-      `/seat/${SAMPLE_SEAT.standId}-${SAMPLE_SEAT.rowIndex + 1}-${SAMPLE_SEAT.colIndex + 1}`,
+    expect(routerPush).not.toHaveBeenCalled();
+    expect(screen.getByTestId("selected-seat-readout")).toHaveTextContent(
+      /Eric Hollies Stand/i,
     );
     restore();
   });

@@ -358,9 +358,14 @@ export async function _markPaidForTest(
 
   if (donation.seatId) {
     const seat = await ctx.db.get(donation.seatId);
-    if (seat && seat.status !== "taken") {
+    if (seat) {
+      // Multi-claim: bump the donor count and flip status to taken
+      // (status is now a derived "any donors" flag — index-friendly,
+      // not exclusivity).
+      const next = (seat.claimedCount ?? 0) + 1;
       await ctx.db.patch(seat._id, {
         status: "taken" as const,
+        claimedCount: next,
         donationId: donation._id,
       });
     }

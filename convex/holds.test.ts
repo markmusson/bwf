@@ -88,12 +88,29 @@ describe("holds.claim concurrency (clientHoldId-keyed, no auth)", () => {
     expect(holds[0]?.clientHoldId).toBe(B_CLIENT);
   });
 
-  test("seat already taken — rejects with seat_unavailable", async () => {
+  test("multi-claim: an already-taken seat can be claimed again", async () => {
     const { t, seatId } = await setupSeat("taken");
 
+    const holdId = await t.run((ctx) =>
+      _claimSeatForTest(ctx, { seatId, clientHoldId: A_CLIENT }),
+    );
+    expect(holdId).toBeDefined();
+  });
+
+  test("seat that doesn't exist still rejects with seat_unavailable", async () => {
+    const t = convexTest(schema, modules);
+    const ghost = await t.run((ctx) =>
+      ctx.db.insert("seats", {
+        stand: "hollies",
+        row: 0,
+        num: 0,
+        status: "available" as const,
+      }),
+    );
+    await t.run((ctx) => ctx.db.delete(ghost));
     await expect(
       t.run((ctx) =>
-        _claimSeatForTest(ctx, { seatId, clientHoldId: A_CLIENT }),
+        _claimSeatForTest(ctx, { seatId: ghost, clientHoldId: A_CLIENT }),
       ),
     ).rejects.toMatchObject({ data: "seat_unavailable" });
   });

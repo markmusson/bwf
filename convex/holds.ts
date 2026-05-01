@@ -24,9 +24,12 @@ export async function _claimSeatForTest(
   args: ClaimArgs,
 ): Promise<Id<"holds">> {
   const seat = await ctx.db.get(args.seatId);
-  if (!seat || seat.status !== "available") {
+  if (!seat) {
     throw new ConvexError("seat_unavailable");
   }
+  // Multi-claim: even already-taken seats can be claimed again. The
+  // hold mechanism still serialises payment-in-flight per seat so
+  // two donors don't both hit Stripe for the same checkout slot.
 
   const now = Date.now();
   const existing = await ctx.db
