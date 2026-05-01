@@ -8,20 +8,33 @@ import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
 import { useClientHoldId } from "@/lib/clientHoldId";
 import {
-  buildAllSeats,
+  arcSpan,
   CENTER_X,
   CENTER_Y,
+  EDGE_BUFFER_DEG,
   ROW_SPACING,
   SEAT_RADIUS,
   STADIUM_HEIGHT,
   STADIUM_WIDTH,
-  type Seat,
   vToRad,
 } from "@/lib/geometry";
 import { STANDS } from "@/lib/stands";
 
 type SeatStatus = "available" | "taken";
 type VisualStatus = "available" | "held" | "taken";
+
+// A seat as rendered on the canvas. Driven by the DB row, not by a
+// synthetic layout function — that means a claimed seat keeps its
+// status across stand re-shapes, even if the stand's arc moves.
+interface RenderedSeat {
+  _id: Id<"seats">;
+  standId: string;
+  rowIndex: number;
+  colIndex: number;
+  status: SeatStatus;
+  x: number;
+  y: number;
+}
 
 interface Props {
   /**
@@ -37,10 +50,6 @@ const SEAT_HELD = "#fbbf24";
 const SEAT_TAKEN = "#0085ca";
 const SEAT_HOVER = "rgba(255,255,255,0.55)";
 const SEAT_SELECTED = "#ffffff";
-
-function statusKey(stand: string, row: number, num: number): string {
-  return `${stand}:${row}:${num}`;
-}
 
 function visualForSeat(status: SeatStatus, isHeld: boolean): VisualStatus {
   if (status === "taken") return "taken";
@@ -61,11 +70,10 @@ function fillForVisual(visual: VisualStatus): string {
 
 function drawStadium(
   ctx: CanvasRenderingContext2D,
-  layout: readonly Seat[],
-  statusByKey: ReadonlyMap<string, SeatStatus>,
-  heldKeys: ReadonlySet<string>,
-  hovered: Seat | null,
-  selected: Seat | null,
+  layout: readonly RenderedSeat[],
+  heldIds: ReadonlySet<Id<"seats">>,
+  hovered: RenderedSeat | null,
+  selected: RenderedSeat | null,
   scale: number,
   dpr: number,
 ) {
@@ -146,13 +154,8 @@ function drawStadium(
 
   // Seats
   for (const seat of layout) {
-    const status =
-      statusByKey.get(statusKey(seat.standId, seat.rowIndex, seat.colIndex)) ??
-      "available";
-    const isHeld = heldKeys.has(
-      statusKey(seat.standId, seat.rowIndex, seat.colIndex),
-    );
-    const visual = visualForSeat(status, isHeld);
+    const isHeld = heldIds.has(seat._id);
+    const visual = visualForSeat(seat.status, isHeld);
     ctx.beginPath();
     ctx.arc(seat.x, seat.y, SEAT_RADIUS, 0, Math.PI * 2);
     ctx.fillStyle = fillForVisual(visual);
@@ -182,11 +185,11 @@ function drawStadium(
 const HIT_RADIUS = SEAT_RADIUS * 2.5;
 
 function findSeatAt(
-  layout: readonly Seat[],
+  layout: readonly RenderedSeat[],
   x: number,
   y: number,
-): Seat | null {
-  let best: { seat: Seat; dist: number } | null = null;
+): RenderedSeat | null {
+  let best: { seat: RenderedSeat; dist: number } | null = null;
   for (const seat of layout) {
     const dist = Math.hypot(seat.x - x, seat.y - y);
     if (!best || dist < best.dist) best = { seat, dist };
@@ -194,10 +197,66 @@ function findSeatAt(
   return best && best.dist <= HIT_RADIUS ? best.seat : null;
 }
 
-function describeSeat(seat: Seat): string {
+function describeSeat(seat: RenderedSeat): string {
   const stand = STANDS.find((s) => s.id === seat.standId);
   const standName = stand?.name ?? seat.standId;
   return `${standName}, row ${seat.rowIndex + 1}, seat ${seat.colIndex + 1}`;
+}
+
+// Compute (x, y) for every DB seat by distributing the seats in each
+// (stand, row) evenly across that stand's CURRENT arc. The fraction
+// is i / (count-1) where i is the index after sorting by num — so a
+// row with 24 seats stays at 24 evenly-spaced positions whether the
+// arc is wide or narrow. Existing claimed seats keep their status
+// because we look them up by _id, not by recomputed (row, num).
+function buildLayoutFromSeats(
+  seatRows: ReadonlyArray<{
+    _id: Id<"seats">;
+    stand: string;
+    row: number;
+    num: number;
+    status: SeatStatus;
+  }>,
+): RenderedSeat[] {
+  const groups = new Map<string, typeof seatRows>();
+  for (const row of seatRows) {
+    const key = `${row.stand}:${row.row}`;
+    let group = groups.get(key);
+    if (!group) {
+      group = [];
+      groups.set(key, group);
+    }
+    (group as (typeof seatRows)[number][]).push(row);
+  }
+
+  const result: RenderedSeat[] = [];
+  const buffer = (EDGE_BUFFER_DEG * Math.PI) / 180;
+  for (const group of groups.values()) {
+    const first = group[0]!;
+    const stand = STANDS.find((s) => s.id === first.stand);
+    if (!stand) continue;
+    const radius = stand.innerR + first.row * ROW_SPACING;
+    const startAngle = vToRad(stand.vStart);
+    const span = arcSpan(stand.vStart, stand.vEnd);
+    const usableSpan = span - 2 * buffer;
+    const sorted = [...group].sort((a, b) => a.num - b.num);
+    const count = sorted.length;
+    for (let i = 0; i < count; i++) {
+      const fraction = count > 1 ? i / (count - 1) : 0.5;
+      const angle = startAngle + buffer + fraction * usableSpan;
+      const dbSeat = sorted[i]!;
+      result.push({
+        _id: dbSeat._id,
+        standId: dbSeat.stand,
+        rowIndex: dbSeat.row,
+        colIndex: dbSeat.num,
+        status: dbSeat.status,
+        x: CENTER_X + radius * Math.cos(angle),
+        y: CENTER_Y + radius * Math.sin(angle),
+      });
+    }
+  }
+  return result;
 }
 
 function errorMessage(error: unknown): string {
@@ -222,37 +281,17 @@ export function StadiumCanvas({ onSeatClaimed }: Props) {
   const router = useRouter();
   const clientHoldId = useClientHoldId();
 
-  const layout = useMemo(() => buildAllSeats(STANDS), []);
+  const layout = useMemo<RenderedSeat[]>(
+    () => buildLayoutFromSeats(seatRows ?? []),
+    [seatRows],
+  );
 
-  const statusByKey = useMemo(() => {
-    const map = new Map<string, SeatStatus>();
-    for (const seat of seatRows ?? []) {
-      map.set(statusKey(seat.stand, seat.row, seat.num), seat.status);
-    }
-    return map;
-  }, [seatRows]);
+  const heldIdSet = useMemo<Set<Id<"seats">>>(() => {
+    return new Set(heldIds ?? []);
+  }, [heldIds]);
 
-  const idByKey = useMemo(() => {
-    const map = new Map<string, Id<"seats">>();
-    for (const seat of seatRows ?? []) {
-      map.set(statusKey(seat.stand, seat.row, seat.num), seat._id);
-    }
-    return map;
-  }, [seatRows]);
-
-  const heldKeys = useMemo(() => {
-    const set = new Set<string>();
-    if (!heldIds || !seatRows) return set;
-    const idToRow = new Map(seatRows.map((row) => [row._id, row]));
-    for (const id of heldIds) {
-      const row = idToRow.get(id);
-      if (row) set.add(statusKey(row.stand, row.row, row.num));
-    }
-    return set;
-  }, [heldIds, seatRows]);
-
-  const [selected, setSelected] = useState<Seat | null>(null);
-  const [hovered, setHovered] = useState<Seat | null>(null);
+  const [selected, setSelected] = useState<RenderedSeat | null>(null);
+  const [hovered, setHovered] = useState<RenderedSeat | null>(null);
   const [tooltipPos, setTooltipPos] = useState<{
     left: number;
     top: number;
@@ -275,22 +314,13 @@ export function StadiumCanvas({ onSeatClaimed }: Props) {
       canvas.height = Math.round(STADIUM_HEIGHT * scale * dpr);
       canvas.style.width = `${w}px`;
       canvas.style.height = `${Math.round(STADIUM_HEIGHT * scale)}px`;
-      drawStadium(
-        ctx,
-        layout,
-        statusByKey,
-        heldKeys,
-        hovered,
-        selected,
-        scale,
-        dpr,
-      );
+      drawStadium(ctx, layout, heldIdSet, hovered, selected, scale, dpr);
     };
 
     draw();
     window.addEventListener("resize", draw);
     return () => window.removeEventListener("resize", draw);
-  }, [layout, statusByKey, heldKeys, hovered, selected]);
+  }, [layout, heldIdSet, hovered, selected]);
 
   const onCanvasMove = (event: MouseEvent<HTMLCanvasElement>) => {
     const canvas = canvasRef.current;
@@ -327,10 +357,7 @@ export function StadiumCanvas({ onSeatClaimed }: Props) {
     const y = (event.clientY - rect.top) / scale;
     const hit = findSeatAt(layout, x, y);
     if (hit) {
-      const status = statusByKey.get(
-        statusKey(hit.standId, hit.rowIndex, hit.colIndex),
-      );
-      if (status === "taken") {
+      if (hit.status === "taken") {
         // Click-through to the public share card. The donate flow
         // never starts on a taken seat — that's a dead end UX.
         router.push(
@@ -349,19 +376,12 @@ export function StadiumCanvas({ onSeatClaimed }: Props) {
       setError("Still warming up. Try again in a moment.");
       return;
     }
-    const seatId = idByKey.get(
-      statusKey(selected.standId, selected.rowIndex, selected.colIndex),
-    );
-    if (!seatId) {
-      setError("Seats are still loading. Try again in a moment.");
-      return;
-    }
 
     setSubmitting(true);
     setError(null);
     try {
-      await claimSeat({ seatId, clientHoldId });
-      onSeatClaimed?.(seatId);
+      await claimSeat({ seatId: selected._id, clientHoldId });
+      onSeatClaimed?.(selected._id);
       setSelected(null);
     } catch (err) {
       setError(errorMessage(err));
@@ -373,9 +393,8 @@ export function StadiumCanvas({ onSeatClaimed }: Props) {
   const tooltipText = hovered ? describeSeat(hovered) : null;
   const tooltipStatus = (() => {
     if (!hovered) return null;
-    const key = statusKey(hovered.standId, hovered.rowIndex, hovered.colIndex);
-    if (heldKeys.has(key)) return "Held — someone's paying";
-    if (statusByKey.get(key) === "taken") return "Taken";
+    if (heldIdSet.has(hovered._id)) return "Held — someone's paying";
+    if (hovered.status === "taken") return "Taken";
     const stand = STANDS.find((s) => s.id === hovered.standId);
     const price = stand ? `£${Math.round(stand.pricePence / 100)}` : "£10";
     return `From ${price}`;

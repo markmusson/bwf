@@ -9,6 +9,10 @@ vi.mock("convex/react", () => ({
   useConvexAuth: () => useConvexAuthMock(),
 }));
 
+vi.mock("next/navigation", () => ({
+  usePathname: () => "/stadium",
+}));
+
 vi.mock("@/convex/_generated/api", () => ({
   api: { admin: { isAdmin: "api.admin.isAdmin" } },
 }));

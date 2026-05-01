@@ -37,7 +37,7 @@ export function BrandHeader() {
           {BWF.campaign.matchPills.map((pill) => (
             <li
               key={pill}
-              className="ring-bwf-blue-light/30 inline-flex items-center rounded-full bg-[rgba(255,255,255,0.10)] px-3 py-1 text-[11px] font-normal tracking-[2px] text-white/90 uppercase ring-1"
+              className="ring-bwf-blue-light/30 inline-flex items-center rounded-full bg-[rgba(255,255,255,0.10)] px-3 py-1 text-[11px] font-medium tracking-[2px] text-white/90 uppercase ring-1"
             >
               {pill}
             </li>
