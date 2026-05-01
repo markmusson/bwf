@@ -11,7 +11,10 @@ vi.mock("convex/react", () => ({
 }));
 
 vi.mock("@/convex/_generated/api", () => ({
-  api: { donations: { giftAidExport: "api.donations.giftAidExport" } },
+  api: {
+    admin: { isAdmin: "api.admin.isAdmin" },
+    donations: { giftAidExport: "api.donations.giftAidExport" },
+  },
 }));
 
 import { GiftAidExport } from "./GiftAidExport";
@@ -38,6 +41,7 @@ const ROWS = [
 function arrange(opts: {
   authenticated?: boolean;
   isLoading?: boolean;
+  isAdmin?: boolean;
   rows?: typeof ROWS | undefined | null;
 }) {
   useQueryMock.mockReset();
@@ -46,7 +50,10 @@ function arrange(opts: {
     isAuthenticated: opts.authenticated ?? true,
     isLoading: opts.isLoading ?? false,
   });
-  useQueryMock.mockReturnValue(opts.rows);
+  useQueryMock.mockImplementation((ref: unknown) => {
+    if (ref === "api.admin.isAdmin") return opts.isAdmin ?? true;
+    return opts.rows;
+  });
 }
 
 describe("GiftAidExport", () => {

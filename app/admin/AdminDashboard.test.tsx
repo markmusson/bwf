@@ -1,16 +1,19 @@
 import { describe, expect, it, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
 
-const useQueryMock = vi.fn();
 const useConvexAuthMock = vi.fn();
+const queryReturns: Map<string, unknown> = new Map();
 
 vi.mock("convex/react", () => ({
-  useQuery: (...args: unknown[]) => useQueryMock(...args),
+  useQuery: (ref: string) => queryReturns.get(ref),
   useConvexAuth: () => useConvexAuthMock(),
 }));
 
 vi.mock("@/convex/_generated/api", () => ({
-  api: { adminDashboard: { dashboard: "api.adminDashboard.dashboard" } },
+  api: {
+    admin: { isAdmin: "api.admin.isAdmin" },
+    adminDashboard: { dashboard: "api.adminDashboard.dashboard" },
+  },
 }));
 
 import { AdminDashboard } from "./AdminDashboard";
@@ -33,6 +36,7 @@ const SNAPSHOT = {
       giftAid: true,
       displayName: "Sarah W.",
       createdAt: Date.parse("2026-04-29T10:00:00Z"),
+      seat: { stand: "hollies", row: 2, num: 11 },
     },
   ],
   recentAuditLog: [
@@ -48,15 +52,17 @@ const SNAPSHOT = {
 function arrange(opts: {
   authenticated?: boolean;
   isLoading?: boolean;
+  isAdmin?: boolean | undefined;
   data?: typeof SNAPSHOT | undefined;
 }) {
-  useQueryMock.mockReset();
+  queryReturns.clear();
   useConvexAuthMock.mockReset();
   useConvexAuthMock.mockReturnValue({
     isAuthenticated: opts.authenticated ?? true,
     isLoading: opts.isLoading ?? false,
   });
-  useQueryMock.mockReturnValue(opts.data);
+  queryReturns.set("api.admin.isAdmin", opts.isAdmin ?? true);
+  queryReturns.set("api.adminDashboard.dashboard", opts.data);
 }
 
 describe("AdminDashboard", () => {
@@ -65,6 +71,14 @@ describe("AdminDashboard", () => {
     render(<AdminDashboard />);
     expect(
       screen.getByRole("heading", { name: /Sign in/i }),
+    ).toBeInTheDocument();
+  });
+
+  it("shows a 'not authorised' message for a signed-in non-admin", () => {
+    arrange({ authenticated: true, isAdmin: false });
+    render(<AdminDashboard />);
+    expect(
+      screen.getByRole("heading", { name: /Not authorised/i }),
     ).toBeInTheDocument();
   });
 
@@ -86,6 +100,13 @@ describe("AdminDashboard", () => {
     render(<AdminDashboard />);
     expect(screen.getByText(/Sarah W./)).toBeInTheDocument();
     expect(screen.getByText("tribute.approve")).toBeInTheDocument();
+  });
+
+  it("links recent donations to /seat/<slug>", () => {
+    arrange({ data: SNAPSHOT });
+    render(<AdminDashboard />);
+    const link = screen.getByRole("link", { name: /hollies-3-12/i });
+    expect(link).toHaveAttribute("href", "/seat/hollies-3-12");
   });
 
   it("links to the moderation queue and gift aid export", () => {

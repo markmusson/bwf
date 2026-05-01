@@ -14,6 +14,7 @@ vi.mock("convex/react", () => ({
 
 vi.mock("@/convex/_generated/api", () => ({
   api: {
+    admin: { isAdmin: "api.admin.isAdmin" },
     prizeDraw: {
       adminListPostalEntries: "api.prizeDraw.adminListPostalEntries",
       adminAddPostalEntry: "api.prizeDraw.adminAddPostalEntry",
@@ -34,6 +35,7 @@ const SAMPLE = [
 
 function arrange(opts: {
   authenticated?: boolean;
+  isAdmin?: boolean;
   rows?: typeof SAMPLE;
   add?: ReturnType<typeof vi.fn>;
 }) {
@@ -44,7 +46,10 @@ function arrange(opts: {
     isAuthenticated: opts.authenticated ?? true,
     isLoading: false,
   });
-  useQueryMock.mockReturnValue(opts.rows);
+  useQueryMock.mockImplementation((ref: unknown) => {
+    if (ref === "api.admin.isAdmin") return opts.isAdmin ?? true;
+    return opts.rows;
+  });
   const add = opts.add ?? vi.fn().mockResolvedValue({ postalEntryId: "p_x" });
   useMutationMock.mockReturnValue(add);
   return { add };

@@ -7,12 +7,16 @@ import { formatGiftAidCsv } from "@/lib/giftAidCsv";
 
 export function GiftAidExport() {
   const auth = useConvexAuth();
-  const rows = useQuery(
-    api.donations.giftAidExport,
+  const isAdmin = useQuery(
+    api.admin.isAdmin,
     auth.isAuthenticated ? {} : "skip",
   );
+  const rows = useQuery(
+    api.donations.giftAidExport,
+    isAdmin === true ? {} : "skip",
+  );
 
-  if (auth.isLoading) {
+  if (auth.isLoading || (auth.isAuthenticated && isAdmin === undefined)) {
     return <Wrapper>Loading…</Wrapper>;
   }
 
@@ -29,6 +33,18 @@ export function GiftAidExport() {
         >
           Sign in
         </Link>
+      </Wrapper>
+    );
+  }
+
+  if (isAdmin === false) {
+    return (
+      <Wrapper>
+        <h1 className="font-display text-3xl">Not authorised</h1>
+        <p className="text-white/70">
+          You&apos;re signed in, but your email isn&apos;t on the BWF admin
+          allowlist.
+        </p>
       </Wrapper>
     );
   }

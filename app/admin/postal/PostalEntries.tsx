@@ -16,9 +16,13 @@ function errorMessage(err: unknown): string {
 
 export function PostalEntries() {
   const auth = useConvexAuth();
+  const isAdmin = useQuery(
+    api.admin.isAdmin,
+    auth.isAuthenticated ? {} : "skip",
+  );
   const rows = useQuery(
     api.prizeDraw.adminListPostalEntries,
-    auth.isAuthenticated ? {} : "skip",
+    isAdmin === true ? {} : "skip",
   );
   const add = useMutation(api.prizeDraw.adminAddPostalEntry);
   const [name, setName] = useState("");
@@ -26,7 +30,7 @@ export function PostalEntries() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  if (auth.isLoading) {
+  if (auth.isLoading || (auth.isAuthenticated && isAdmin === undefined)) {
     return <Wrapper>Loading…</Wrapper>;
   }
 
@@ -40,6 +44,18 @@ export function PostalEntries() {
         >
           Sign in
         </Link>
+      </Wrapper>
+    );
+  }
+
+  if (isAdmin === false) {
+    return (
+      <Wrapper>
+        <h1 className="font-display text-3xl">Not authorised</h1>
+        <p className="text-white/70">
+          You&apos;re signed in, but your email isn&apos;t on the BWF admin
+          allowlist.
+        </p>
       </Wrapper>
     );
   }

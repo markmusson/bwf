@@ -3,6 +3,7 @@
 import { useConvexAuth, useQuery } from "convex/react";
 import Link from "next/link";
 import { api } from "@/convex/_generated/api";
+import { formatSeatSlug } from "@/lib/seatSlug";
 
 function formatGBP(pence: number): string {
   return `£${(pence / 100).toFixed(2)}`;
@@ -14,12 +15,16 @@ function formatTime(ms: number): string {
 
 export function AdminDashboard() {
   const auth = useConvexAuth();
-  const data = useQuery(
-    api.adminDashboard.dashboard,
+  const isAdmin = useQuery(
+    api.admin.isAdmin,
     auth.isAuthenticated ? {} : "skip",
   );
+  const data = useQuery(
+    api.adminDashboard.dashboard,
+    isAdmin === true ? {} : "skip",
+  );
 
-  if (auth.isLoading) {
+  if (auth.isLoading || (auth.isAuthenticated && isAdmin === undefined)) {
     return <Wrapper>Loading…</Wrapper>;
   }
 
@@ -36,6 +41,19 @@ export function AdminDashboard() {
         >
           Sign in
         </Link>
+      </Wrapper>
+    );
+  }
+
+  if (isAdmin === false) {
+    return (
+      <Wrapper>
+        <h1 className="font-display text-3xl">Not authorised</h1>
+        <p className="text-white/70">
+          You&apos;re signed in, but your email isn&apos;t on the BWF admin
+          allowlist. Ask Mark to add it via{" "}
+          <code className="text-bwf-pale">ADMIN_EMAILS</code>.
+        </p>
       </Wrapper>
     );
   }
@@ -114,7 +132,20 @@ export function AdminDashboard() {
                 key={d.donationId}
                 className="bg-bwf-navy ring-bwf-blue/30 flex flex-wrap items-baseline justify-between gap-3 rounded-lg p-3 ring-1"
               >
-                <span>{d.displayName ?? "Anonymous"}</span>
+                <span>
+                  {d.displayName ?? "Anonymous"}
+                  {d.seat ? (
+                    <>
+                      {" · "}
+                      <Link
+                        href={`/seat/${formatSeatSlug(d.seat)}`}
+                        className="text-bwf-pale hover:text-white"
+                      >
+                        {formatSeatSlug(d.seat)}
+                      </Link>
+                    </>
+                  ) : null}
+                </span>
                 <span className="text-bwf-pale text-xs">
                   {formatGBP(d.amountPence)}
                   {d.giftAid ? " · Gift Aid" : ""} · {formatTime(d.createdAt)}

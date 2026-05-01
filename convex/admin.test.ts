@@ -3,6 +3,7 @@
 
 import { convexTest } from "convex-test";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
+import { api } from "./_generated/api";
 import { parseAdminEmails, requireAdmin } from "./admin";
 import schema from "./schema";
 
@@ -108,5 +109,46 @@ describe("requireAdmin", () => {
         .withIdentity({ subject: userId as unknown as string })
         .run((ctx) => requireAdmin(ctx)),
     ).rejects.toMatchObject({ data: "forbidden" });
+  });
+});
+
+describe("isAdmin (soft-fail predicate)", () => {
+  const original = process.env.ADMIN_EMAILS;
+
+  beforeEach(() => {
+    process.env.ADMIN_EMAILS = "mark@bwf.org";
+  });
+
+  afterEach(() => {
+    if (original === undefined) delete process.env.ADMIN_EMAILS;
+    else process.env.ADMIN_EMAILS = original;
+    vi.restoreAllMocks();
+  });
+
+  test("returns false (no throw) for an unauthenticated caller", async () => {
+    const t = convexTest(schema, modules);
+    expect(await t.query(api.admin.isAdmin, {})).toBe(false);
+  });
+
+  test("returns false for a signed-in user not on the allowlist", async () => {
+    const t = convexTest(schema, modules);
+    const userId = await t.run((ctx) =>
+      ctx.db.insert("users", { email: "stranger@example.com" }),
+    );
+    const result = await t
+      .withIdentity({ subject: userId as unknown as string })
+      .query(api.admin.isAdmin, {});
+    expect(result).toBe(false);
+  });
+
+  test("returns true for an allowlisted user", async () => {
+    const t = convexTest(schema, modules);
+    const userId = await t.run((ctx) =>
+      ctx.db.insert("users", { email: "mark@bwf.org" }),
+    );
+    const result = await t
+      .withIdentity({ subject: userId as unknown as string })
+      .query(api.admin.isAdmin, {});
+    expect(result).toBe(true);
   });
 });

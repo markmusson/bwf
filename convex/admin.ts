@@ -1,7 +1,7 @@
 import { ConvexError } from "convex/values";
 import { getAuthUserId } from "@convex-dev/auth/server";
 import type { Id } from "./_generated/dataModel";
-import type { MutationCtx, QueryCtx } from "./_generated/server";
+import { query, type MutationCtx, type QueryCtx } from "./_generated/server";
 
 // Centralised admin-allowlist check. Every admin-only function must
 // call this. Throws ConvexError("forbidden") for anyone outside the
@@ -37,6 +37,22 @@ export async function requireAdmin(ctx: QueryCtx): Promise<AdminContext> {
 
   return { userId, email: user.email };
 }
+
+// Soft-fail predicate for the client. Admin pages call this first and
+// only run their data query when it returns true. Avoids the
+// browser-console spam that requireAdmin's throw produces when a
+// signed-in non-admin lands on /admin.
+export const isAdmin = query({
+  args: {},
+  handler: async (ctx): Promise<boolean> => {
+    const userId = await getAuthUserId(ctx);
+    if (!userId) return false;
+    const user = await ctx.db.get(userId);
+    if (!user?.email) return false;
+    const allow = parseAdminEmails(process.env.ADMIN_EMAILS);
+    return allow.includes(user.email.toLowerCase());
+  },
+});
 
 // Append-only admin action log. Call from any requireAdmin-gated
 // mutation that mutates state — approves, rejects, prize draws.

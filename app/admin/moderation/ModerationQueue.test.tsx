@@ -14,6 +14,7 @@ vi.mock("convex/react", () => ({
 
 vi.mock("@/convex/_generated/api", () => ({
   api: {
+    admin: { isAdmin: "api.admin.isAdmin" },
     tributes: {
       listForModeration: "api.tributes.listForModeration",
       adminApprove: "api.tributes.adminApprove",
@@ -48,6 +49,7 @@ const SAMPLE_ROWS = [
 function arrange(opts: {
   authenticated?: boolean;
   isLoading?: boolean;
+  isAdmin?: boolean;
   tributes?: typeof SAMPLE_ROWS | undefined;
   approve?: ReturnType<typeof vi.fn>;
   reject?: ReturnType<typeof vi.fn>;
@@ -60,7 +62,10 @@ function arrange(opts: {
     isAuthenticated: opts.authenticated ?? true,
     isLoading: opts.isLoading ?? false,
   });
-  useQueryMock.mockReturnValue(opts.tributes);
+  useQueryMock.mockImplementation((ref: unknown) => {
+    if (ref === "api.admin.isAdmin") return opts.isAdmin ?? true;
+    return opts.tributes;
+  });
 
   const approve = opts.approve ?? vi.fn().mockResolvedValue({});
   const reject = opts.reject ?? vi.fn().mockResolvedValue({});

@@ -22,6 +22,7 @@ export interface AdminDashboard {
     giftAid: boolean;
     displayName: string | null;
     createdAt: number;
+    seat: { stand: string; row: number; num: number } | null;
   }>;
   recentAuditLog: Array<{
     action: string;
@@ -67,17 +68,22 @@ export const dashboard = query({
 
     const entries = await ctx.db.query("prizeEntries").take(5000);
 
-    const recentDonations = paid
+    const recent = paid
       .slice()
       .sort((a, b) => b._creationTime - a._creationTime)
-      .slice(0, 10)
-      .map((d) => ({
+      .slice(0, 10);
+    const recentDonations: AdminDashboard["recentDonations"] = [];
+    for (const d of recent) {
+      const seat = d.seatId ? await ctx.db.get(d.seatId) : null;
+      recentDonations.push({
         donationId: d._id,
         amountPence: d.amountPence,
         giftAid: d.giftAid,
         displayName: d.hideName ? null : (d.displayName ?? null),
         createdAt: d._creationTime,
-      }));
+        seat: seat ? { stand: seat.stand, row: seat.row, num: seat.num } : null,
+      });
+    }
 
     const log = await ctx.db.query("adminAuditLog").order("desc").take(10);
     const recentAuditLog = log.map((l) => ({
