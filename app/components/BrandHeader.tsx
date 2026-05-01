@@ -26,7 +26,7 @@ export function BrandHeader() {
           />
         </Link>
 
-        <h1 className="font-display text-[clamp(32px,7vw,54px)] leading-none">
+        <h1 className="font-display text-[clamp(32px,7vw,54px)] leading-none font-black tracking-[1px] uppercase">
           Blue for <span className="text-bwf-blue-light">Bob</span> 2026
         </h1>
 
@@ -37,7 +37,7 @@ export function BrandHeader() {
           {BWF.campaign.matchPills.map((pill) => (
             <li
               key={pill}
-              className="ring-bwf-blue-light/30 inline-flex items-center rounded-full bg-[rgba(255,255,255,0.10)] px-3 py-1 text-[11px] font-medium tracking-[2px] text-white/90 uppercase ring-1"
+              className="font-display ring-bwf-blue/40 inline-flex items-center rounded-full bg-[rgba(0,133,202,0.2)] px-3 py-1 text-[12px] font-semibold tracking-[0.5px] text-white uppercase ring-1"
             >
               {pill}
             </li>

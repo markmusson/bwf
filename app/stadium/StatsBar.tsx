@@ -74,11 +74,11 @@ export function StatsBar() {
               ].join(" ")}
             >
               <span
-                className={`font-display text-[clamp(18px,4vw,28px)] leading-none ${colorClass(cell.color)}`}
+                className={`font-display text-[clamp(20px,4vw,28px)] leading-none font-black tracking-[0.5px] uppercase ${colorClass(cell.color)}`}
               >
                 {cell.value}
               </span>
-              <span className="font-display mt-1 text-[9px] tracking-[2px] text-white/60 uppercase">
+              <span className="mt-1 text-[9px] font-semibold tracking-[2px] text-white/60 uppercase">
                 {cell.label}
               </span>
             </div>

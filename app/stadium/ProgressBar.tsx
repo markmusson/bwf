@@ -20,7 +20,7 @@ export function ProgressBar() {
       className="bg-bwf-navy border-b border-white/10 px-5 py-2.5"
     >
       <div className="mx-auto flex max-w-3xl items-center gap-3">
-        <p className="font-display flex-1 truncate text-[13px] tracking-wider text-white/75">
+        <p className="font-display flex-1 truncate text-[13px] font-bold tracking-[0.5px] text-white/75 uppercase">
           {reached
             ? "Edgbaston is blue for Bob."
             : "Help turn Edgbaston blue for Bob"}
@@ -39,7 +39,7 @@ export function ProgressBar() {
             style={{ width: `${pct}%`, minWidth: pct > 0 ? "3px" : "0" }}
           />
         </div>
-        <span className="font-display text-bwf-blue-light text-[13px] tracking-wider">
+        <span className="font-display text-bwf-blue-light text-[13px] font-extrabold tracking-[0.5px]">
           {pct.toFixed(1)}%
         </span>
       </div>

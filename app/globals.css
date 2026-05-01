@@ -41,11 +41,12 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
-/* Display utility for the Barlow Condensed all-caps headers used in the mock. */
+/* Family-only utility — Barlow Condensed, the display face used in
+ * the v4 mock. Weight, case, and tracking are CONTROLLED PER CALL via
+ * Tailwind utilities (font-bold, font-semibold, uppercase, etc.).
+ * The previous version forced font-weight:900 + uppercase + tracking
+ * here, which clobbered every override added at the call site. */
 .font-display {
   font-family: var(--font-condensed), "Barlow Condensed", sans-serif;
-  font-weight: 900;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  line-height: 1;
+  line-height: 1.05;
 }
