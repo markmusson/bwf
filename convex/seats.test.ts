@@ -176,6 +176,58 @@ describe("seats.getCard", () => {
     expect(result?.tribute).toBeNull();
   });
 
+  test("getCardBySlug returns the same shape as getCard for a valid coord", async () => {
+    const t = convexTest(schema, modules);
+    await t.run(async (ctx) => {
+      const seatId = await ctx.db.insert("seats", {
+        stand: "wyatt",
+        row: 0,
+        num: 4,
+        status: "taken" as const,
+      });
+      const userId = await ctx.db.insert("users", {});
+      const donationId = await ctx.db.insert("donations", {
+        userId,
+        seatId,
+        amountPence: 1500,
+        currency: "GBP" as const,
+        giftAid: false,
+        hideName: false,
+        hideAmount: false,
+        displayName: "Sarah W.",
+        stripeSessionId: "cs_slug",
+        status: "paid" as const,
+      });
+      await ctx.db.patch(seatId, { donationId });
+    });
+
+    const result = await t.query(api.seats.getCardBySlug, {
+      slug: "wyatt-1-5",
+    });
+    expect(result?.seat).toEqual({
+      stand: "wyatt",
+      row: 0,
+      num: 4,
+      status: "taken",
+    });
+    expect(result?.donation?.displayName).toBe("Sarah W.");
+  });
+
+  test("getCardBySlug returns null for a malformed slug", async () => {
+    const t = convexTest(schema, modules);
+    expect(await t.query(api.seats.getCardBySlug, { slug: "24" })).toBeNull();
+    expect(
+      await t.query(api.seats.getCardBySlug, { slug: "nope-1-1" }),
+    ).toBeNull();
+  });
+
+  test("getCardBySlug returns null for an unseeded coord", async () => {
+    const t = convexTest(schema, modules);
+    expect(
+      await t.query(api.seats.getCardBySlug, { slug: "hollies-99-99" }),
+    ).toBeNull();
+  });
+
   test("seat marked taken but donation pending (race) returns donation:null", async () => {
     const t = convexTest(schema, modules);
     const seatId = await t.run(async (ctx) => {

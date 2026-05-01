@@ -8,33 +8,34 @@ vi.mock("convex/react", () => ({
 }));
 
 vi.mock("@/convex/_generated/api", () => ({
-  api: { seats: { getCard: "api.seats.getCard" } },
+  api: { seats: { getCardBySlug: "api.seats.getCardBySlug" } },
 }));
 
 import { SeatCard } from "./SeatCard";
 
 describe("SeatCard", () => {
-  it("subscribes to api.seats.getCard with the seat id", () => {
+  it("subscribes to api.seats.getCardBySlug with the slug", () => {
     useQueryMock.mockReset();
     useQueryMock.mockReturnValue(undefined);
-    render(<SeatCard seatId="seat_42" />);
-    expect(useQueryMock).toHaveBeenCalledWith("api.seats.getCard", {
-      seatId: "seat_42",
+    render(<SeatCard slug="hollies-3-12" />);
+    expect(useQueryMock).toHaveBeenCalledWith("api.seats.getCardBySlug", {
+      slug: "hollies-3-12",
     });
   });
 
   it("shows loading state while the query is undefined", () => {
     useQueryMock.mockReset();
     useQueryMock.mockReturnValue(undefined);
-    render(<SeatCard seatId="seat_42" />);
+    render(<SeatCard slug="hollies-3-12" />);
     expect(screen.getByTestId("seat-card-loading")).toBeInTheDocument();
   });
 
   it("shows a not-found message when the query returns null", () => {
     useQueryMock.mockReset();
     useQueryMock.mockReturnValue(null);
-    render(<SeatCard seatId="seat_unknown" />);
+    render(<SeatCard slug="24" />);
     expect(screen.getByText(/Seat not found/i)).toBeInTheDocument();
+    expect(screen.getByText(/hollies-3-12/)).toBeInTheDocument();
   });
 
   it("shows an available state with a claim CTA when the seat is unclaimed", () => {
@@ -44,7 +45,7 @@ describe("SeatCard", () => {
       donation: null,
       tribute: null,
     });
-    render(<SeatCard seatId="seat_a" />);
+    render(<SeatCard slug="wyatt-3-5" />);
     expect(screen.getByText(/Wyatt Stand · Row 3, Seat 5/)).toBeInTheDocument();
     expect(screen.getByText(/This seat is unclaimed/i)).toBeInTheDocument();
     const cta = screen.getByRole("link", { name: /Claim a seat/i });
@@ -58,7 +59,7 @@ describe("SeatCard", () => {
       donation: { displayName: "Sarah W.", amountPence: 2500, giftAid: true },
       tribute: { text: "For Bob." },
     });
-    render(<SeatCard seatId="seat_t" />);
+    render(<SeatCard slug="hollies-2-8" />);
     expect(
       screen.getByText(/Eric Hollies Stand · Row 2, Seat 8/),
     ).toBeInTheDocument();
@@ -74,7 +75,7 @@ describe("SeatCard", () => {
       donation: { displayName: null, amountPence: 1000, giftAid: false },
       tribute: null,
     });
-    render(<SeatCard seatId="seat_anon" />);
+    render(<SeatCard slug="hollies-1-1" />);
     expect(screen.getByText("Anonymous")).toBeInTheDocument();
   });
 
@@ -85,7 +86,7 @@ describe("SeatCard", () => {
       donation: { displayName: "Sarah W.", amountPence: null, giftAid: false },
       tribute: null,
     });
-    render(<SeatCard seatId="seat_hideamt" />);
+    render(<SeatCard slug="hollies-1-1" />);
     expect(screen.queryByText(/£/)).not.toBeInTheDocument();
   });
 
@@ -96,7 +97,7 @@ describe("SeatCard", () => {
       donation: { displayName: "Sarah W.", amountPence: 1000, giftAid: false },
       tribute: null,
     });
-    render(<SeatCard seatId="seat_notrib" />);
+    render(<SeatCard slug="hollies-1-1" />);
     expect(screen.queryByTestId("seat-tribute")).not.toBeInTheDocument();
   });
 });

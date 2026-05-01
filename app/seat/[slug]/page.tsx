@@ -9,14 +9,14 @@ export const metadata: Metadata = {
 };
 
 interface PageProps {
-  params: Promise<{ seatId: string }>;
+  params: Promise<{ slug: string }>;
 }
 
 export default async function SeatPage({ params }: PageProps) {
-  const { seatId } = await params;
+  const { slug } = await params;
   return (
     <Suspense fallback={null}>
-      <SeatCard seatId={seatId} />
+      <SeatCard slug={slug} />
     </Suspense>
   );
 }

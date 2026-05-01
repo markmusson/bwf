@@ -4,6 +4,7 @@ import { useQuery } from "convex/react";
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import { api } from "@/convex/_generated/api";
+import { formatSeatSlug } from "@/lib/seatSlug";
 import { STANDS } from "@/lib/stands";
 
 function describeSeat(
@@ -87,7 +88,16 @@ export function WallView() {
                 <span className="font-display tracking-widest uppercase">
                   {tribute.displayName ?? "Anonymous"}
                 </span>
-                <span>{describeSeat(tribute.seat)}</span>
+                {tribute.seat ? (
+                  <Link
+                    href={`/seat/${formatSeatSlug(tribute.seat)}`}
+                    className="hover:text-white"
+                  >
+                    {describeSeat(tribute.seat)}
+                  </Link>
+                ) : (
+                  <span>{describeSeat(tribute.seat)}</span>
+                )}
               </div>
               <p className="text-base text-white">{tribute.text}</p>
             </li>

@@ -1,6 +1,8 @@
 import { v } from "convex/values";
-import { internalMutation, query } from "./_generated/server";
+import { internalMutation, query, type QueryCtx } from "./_generated/server";
+import type { Doc } from "./_generated/dataModel";
 import { buildAllSeats } from "../lib/geometry";
+import { parseSeatSlug } from "../lib/seatSlug";
 import { STANDS } from "../lib/stands";
 
 // Public read for the stadium canvas. Convex keeps this reactive — no
@@ -68,53 +70,75 @@ export const count = query({
   },
 });
 
-// Public read for /seat/[id] share cards. Returns a deliberately
+// Public read for /seat/<slug> share cards. Returns a deliberately
 // narrow shape — the donor's display name, amount, and Gift Aid flag
 // are exposed only when the donor has not opted out via hideName /
 // hideAmount, and tributes are only returned once moderation has
 // approved them. Pending donations (paid via webhook race) and
 // non-existent seats both return safely.
+async function buildSeatCard(ctx: QueryCtx, seat: Doc<"seats">) {
+  const seatPublic = {
+    stand: seat.stand,
+    row: seat.row,
+    num: seat.num,
+    status: seat.status,
+  };
+
+  if (!seat.donationId) {
+    return { seat: seatPublic, donation: null, tribute: null };
+  }
+
+  const donation = await ctx.db.get(seat.donationId);
+  if (!donation || donation.status !== "paid") {
+    return { seat: seatPublic, donation: null, tribute: null };
+  }
+
+  const donationPublic = {
+    displayName: donation.hideName ? null : (donation.displayName ?? null),
+    amountPence: donation.hideAmount ? null : donation.amountPence,
+    giftAid: donation.giftAid,
+  };
+
+  const tribute = await ctx.db
+    .query("tributes")
+    .filter((q) => q.eq(q.field("donationId"), donation._id))
+    .first();
+
+  const tributePublic =
+    tribute && tribute.status === "approved" ? { text: tribute.text } : null;
+
+  return {
+    seat: seatPublic,
+    donation: donationPublic,
+    tribute: tributePublic,
+  };
+}
+
 export const getCard = query({
   args: { seatId: v.id("seats") },
   handler: async (ctx, { seatId }) => {
     const seat = await ctx.db.get(seatId);
     if (!seat) return null;
+    return await buildSeatCard(ctx, seat);
+  },
+});
 
-    const seatPublic = {
-      stand: seat.stand,
-      row: seat.row,
-      num: seat.num,
-      status: seat.status,
-    };
-
-    if (!seat.donationId) {
-      return { seat: seatPublic, donation: null, tribute: null };
-    }
-
-    const donation = await ctx.db.get(seat.donationId);
-    if (!donation || donation.status !== "paid") {
-      return { seat: seatPublic, donation: null, tribute: null };
-    }
-
-    const donationPublic = {
-      displayName: donation.hideName ? null : (donation.displayName ?? null),
-      amountPence: donation.hideAmount ? null : donation.amountPence,
-      giftAid: donation.giftAid,
-    };
-
-    const tribute = await ctx.db
-      .query("tributes")
-      .filter((q) => q.eq(q.field("donationId"), donation._id))
+// Slug form for /seat/<stand>-<row>-<num>. Slug is 1-indexed for
+// humans; lib/seatSlug parses it. Invalid slugs and unknown coords
+// return null so the page renders the not-found state.
+export const getCardBySlug = query({
+  args: { slug: v.string() },
+  handler: async (ctx, { slug }) => {
+    const coord = parseSeatSlug(slug);
+    if (!coord) return null;
+    const seat = await ctx.db
+      .query("seats")
+      .withIndex("by_coord", (q) =>
+        q.eq("stand", coord.stand).eq("row", coord.row).eq("num", coord.num),
+      )
       .first();
-
-    const tributePublic =
-      tribute && tribute.status === "approved" ? { text: tribute.text } : null;
-
-    return {
-      seat: seatPublic,
-      donation: donationPublic,
-      tribute: tributePublic,
-    };
+    if (!seat) return null;
+    return await buildSeatCard(ctx, seat);
   },
 });
 

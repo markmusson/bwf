@@ -3,11 +3,10 @@
 import { useQuery } from "convex/react";
 import Link from "next/link";
 import { api } from "@/convex/_generated/api";
-import type { Id } from "@/convex/_generated/dataModel";
 import { STANDS } from "@/lib/stands";
 
 interface CardProps {
-  seatId: string;
+  slug: string;
 }
 
 function describeSeat(seat: {
@@ -24,10 +23,8 @@ function formatGBP(pence: number): string {
   return pounds % 1 === 0 ? `£${pounds.toFixed(0)}` : `£${pounds.toFixed(2)}`;
 }
 
-export function SeatCard({ seatId }: CardProps) {
-  const card = useQuery(api.seats.getCard, {
-    seatId: seatId as Id<"seats">,
-  });
+export function SeatCard({ slug }: CardProps) {
+  const card = useQuery(api.seats.getCardBySlug, { slug });
 
   if (card === undefined) {
     return (
@@ -46,7 +43,9 @@ export function SeatCard({ seatId }: CardProps) {
       <section className="bg-bwf-blue mx-auto flex max-w-2xl flex-col gap-6 px-6 py-12 text-center text-white">
         <h1 className="font-display text-3xl">Seat not found</h1>
         <p className="text-sm text-white/70">
-          That seat link doesn&apos;t match a Blue for Bob seat.
+          Seat URLs look like{" "}
+          <code className="text-bwf-pale">/seat/hollies-3-12</code> — stand id,
+          row, seat (1-indexed).
         </p>
         <Link
           href="/stadium"
