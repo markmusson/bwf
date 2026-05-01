@@ -2,7 +2,7 @@
 
 import { ConvexError, v } from "convex/values";
 import Stripe from "stripe";
-import { internal } from "./_generated/api";
+import { api, internal } from "./_generated/api";
 import type { Id } from "./_generated/dataModel";
 import { action, internalAction } from "./_generated/server";
 
@@ -16,7 +16,6 @@ interface CreateSessionResult {
   donationId: Id<"donations">;
 }
 
-const MIN_DONATION_PENCE = 1000;
 const TRIBUTE_MAX_LENGTH = 280;
 
 const giftAidConfirmationsValidator = v.object({
@@ -73,10 +72,20 @@ export const createSession = action({
       throw new ConvexError("invalid_client_hold_id");
     }
 
-    if (
-      !Number.isInteger(args.amountPence) ||
-      args.amountPence < MIN_DONATION_PENCE
-    ) {
+    if (!Number.isInteger(args.amountPence)) {
+      throw new ConvexError("amount_below_minimum");
+    }
+
+    // Per-seat tier minimum — premium seats start at £50, etc. The
+    // donor can always bump UPWARDS but never below.
+    const seatMinimum: number | null = await ctx.runQuery(
+      api.seats.getMinimumPenceForSeat,
+      { seatId: args.seatId },
+    );
+    if (seatMinimum === null) {
+      throw new ConvexError("hold_required");
+    }
+    if (args.amountPence < seatMinimum) {
       throw new ConvexError("amount_below_minimum");
     }
 

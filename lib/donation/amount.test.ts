@@ -28,6 +28,27 @@ describe("validateAmountPence", () => {
     });
   });
 
+  it("honours a per-seat minimum override (e.g. £50 premium seat)", () => {
+    expect(validateAmountPence(4_999, { minimumPence: 5_000 })).toEqual({
+      ok: false,
+      reason: "below_minimum",
+    });
+    expect(validateAmountPence(5_000, { minimumPence: 5_000 })).toEqual({
+      ok: true,
+    });
+    expect(validateAmountPence(7_500, { minimumPence: 5_000 })).toEqual({
+      ok: true,
+    });
+  });
+
+  it("falls back to the global £10 floor when no minimum is provided", () => {
+    expect(validateAmountPence(2_500)).toEqual({ ok: true });
+    expect(validateAmountPence(999)).toEqual({
+      ok: false,
+      reason: "below_minimum",
+    });
+  });
+
   it("rejects non-integer values", () => {
     expect(validateAmountPence(10.5)).toEqual({
       ok: false,

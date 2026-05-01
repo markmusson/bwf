@@ -70,6 +70,19 @@ export const count = query({
   },
 });
 
+// Internal: look up a seat's minimum donation (in pence) for the
+// stripe action's pre-checkout validation. Returns null if the seat
+// doesn't exist; the caller treats that as a hard error.
+export const getMinimumPenceForSeat = query({
+  args: { seatId: v.id("seats") },
+  handler: async (ctx, { seatId }) => {
+    const seat = await ctx.db.get(seatId);
+    if (!seat) return null;
+    const stand = STANDS.find((s) => s.id === seat.stand);
+    return stand?.pricePence ?? 1000;
+  },
+});
+
 // Public read for /seat/<slug> share cards. Returns a deliberately
 // narrow shape — the donor's display name, amount, and Gift Aid flag
 // are exposed only when the donor has not opted out via hideName /

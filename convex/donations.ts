@@ -1,6 +1,7 @@
 import { ConvexError, v } from "convex/values";
 import { getAuthUserId } from "@convex-dev/auth/server";
 import { moderateTribute } from "../lib/moderation";
+import { STANDS } from "../lib/stands";
 import { internal } from "./_generated/api";
 import type { Id } from "./_generated/dataModel";
 import {
@@ -58,10 +59,7 @@ export async function _createDraftForTest(
   ctx: MutationCtx,
   args: CreateDraftArgs,
 ): Promise<CreateDraftResult> {
-  if (
-    !Number.isInteger(args.amountPence) ||
-    args.amountPence < MIN_DONATION_PENCE
-  ) {
+  if (!Number.isInteger(args.amountPence)) {
     throw new ConvexError("amount_below_minimum");
   }
 
@@ -80,6 +78,18 @@ export async function _createDraftForTest(
   }
   if (hold.expiresAt <= Date.now()) {
     throw new ConvexError("hold_expired");
+  }
+
+  // Per-seat minimum: the donor can bump upwards but cannot go below
+  // the stand's tier price (£10 general, £25 standard, £50 premium).
+  const seat = await ctx.db.get(args.seatId);
+  if (!seat) {
+    throw new ConvexError("hold_required");
+  }
+  const stand = STANDS.find((s) => s.id === seat.stand);
+  const seatMinimum = stand?.pricePence ?? MIN_DONATION_PENCE;
+  if (args.amountPence < seatMinimum) {
+    throw new ConvexError("amount_below_minimum");
   }
 
   const donationId = await ctx.db.insert("donations", {

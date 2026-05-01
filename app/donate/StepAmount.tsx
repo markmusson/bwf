@@ -12,12 +12,21 @@ import { formatGbpPence } from "@/lib/money";
 interface Props {
   value: number;
   onChange: (amountPence: number) => void;
+  /** Per-seat minimum (defaults to the global £10 floor). */
+  minimumPence?: number;
 }
 
-export function StepAmount({ value, onChange }: Props) {
-  const isPreset = (SUGGESTED_AMOUNTS_PENCE as readonly number[]).includes(
-    value,
+export function StepAmount({
+  value,
+  onChange,
+  minimumPence = MIN_DONATION_PENCE,
+}: Props) {
+  // Hide preset tiles below this seat's minimum — donor can pick a
+  // valid preset or "Other" to type a higher amount.
+  const visiblePresets = SUGGESTED_AMOUNTS_PENCE.filter(
+    (p) => p >= minimumPence,
   );
+  const isPreset = (visiblePresets as readonly number[]).includes(value);
   const [customMode, setCustomMode] = useState(!isPreset);
   const [customInput, setCustomInput] = useState(
     isPreset ? "" : (value / 100).toString(),
@@ -42,11 +51,11 @@ export function StepAmount({ value, onChange }: Props) {
       return;
     }
     const pence = poundsToPence(pounds);
-    const result = validateAmountPence(pence);
+    const result = validateAmountPence(pence, { minimumPence });
     if (!result.ok) {
       setCustomError(
         result.reason === "below_minimum"
-          ? `The minimum is ${formatGbpPence(MIN_DONATION_PENCE)}.`
+          ? `The minimum for this seat is ${formatGbpPence(minimumPence)}.`
           : "Enter a valid amount.",
       );
       return;
@@ -61,8 +70,8 @@ export function StepAmount({ value, onChange }: Props) {
         How much would you like to donate?
       </legend>
       <p className="text-sm text-white/70">
-        £10 buys you a virtual seat. Anything more goes straight to the Bob
-        Willis Fund.
+        Minimum {formatGbpPence(minimumPence)} for this seat — bump it up if you
+        can. Every extra pound goes straight to the Bob Willis Fund.
       </p>
 
       <div
@@ -70,7 +79,7 @@ export function StepAmount({ value, onChange }: Props) {
         role="radiogroup"
         aria-label="Donation amount"
       >
-        {SUGGESTED_AMOUNTS_PENCE.map((amountPence) => {
+        {visiblePresets.map((amountPence) => {
           const checked = !customMode && value === amountPence;
           return (
             <label
@@ -130,11 +139,11 @@ export function StepAmount({ value, onChange }: Props) {
               id="custom-amount"
               type="number"
               inputMode="decimal"
-              min="10"
+              min={(minimumPence / 100).toString()}
               step="0.01"
               value={customInput}
               onChange={(event) => handleCustomChange(event.target.value)}
-              placeholder="25"
+              placeholder={(minimumPence / 100).toString()}
               className="ring-bwf-blue/40 w-32 rounded-lg bg-white/10 px-3 py-2 text-base ring-1 outline-none focus:ring-2"
               aria-invalid={customError !== null}
               aria-describedby={customError ? "custom-amount-error" : undefined}

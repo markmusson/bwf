@@ -12,20 +12,20 @@ import {
 interface Props {
   seatId: Id<"seats"> | null;
   seatLabel: string | null;
-  /** Suggested donation in pence (defaults to the stand's tier price). */
-  suggestedPence?: number;
+  /** Minimum donation in pence — derived from the stand's tier price. */
+  minimumPence?: number;
   onClose: () => void;
 }
 
 export function DonateModal({
   seatId,
   seatLabel,
-  suggestedPence,
+  minimumPence,
   onClose,
 }: Props) {
   const initialFormValue: DonateFormValue =
-    suggestedPence !== undefined
-      ? { ...EMPTY_DONATE_FORM_VALUE, amountPence: suggestedPence }
+    minimumPence !== undefined
+      ? { ...EMPTY_DONATE_FORM_VALUE, amountPence: minimumPence }
       : EMPTY_DONATE_FORM_VALUE;
 
   // The donation form / payment phase resets every time a new seat
@@ -80,6 +80,7 @@ export function DonateModal({
           {phase === "form" ? (
             <DonateForm
               initial={collected}
+              minimumPence={minimumPence}
               onContinue={(value) => {
                 setCollected(value);
                 setPhase("pay");

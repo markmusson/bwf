@@ -99,7 +99,7 @@ describe("rate-limit integration on user-facing mutations", () => {
     const t = convexTest(schema, modules);
     const seatId = await t.run((ctx) =>
       ctx.db.insert("seats", {
-        stand: "hollies",
+        stand: "wyatt",
         row: 0,
         num: 0,
         status: "available" as const,

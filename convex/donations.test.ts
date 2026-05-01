@@ -18,9 +18,12 @@ const A_CLIENT = "client-aaaaaaaaaaaa";
 
 async function setup() {
   const t = convexTest(schema, modules);
+  // Wyatt is the £10 general tier — the default test amount of 1000
+  // is at-floor for this seat, so unrelated tests don't trip the
+  // per-seat minimum check.
   const seatId = await t.run(async (ctx) =>
     ctx.db.insert("seats", {
-      stand: "hollies",
+      stand: "wyatt",
       row: 0,
       num: 0,
       status: "available" as const,
@@ -110,6 +113,122 @@ describe("donations.createDraft", () => {
         ),
       ),
     ).rejects.toMatchObject({ data: "amount_below_minimum" });
+  });
+
+  test("rejects below-tier amounts on a £50 premium (South) seat", async () => {
+    const t = convexTest(schema, modules);
+    const seatId = await t.run((ctx) =>
+      ctx.db.insert("seats", {
+        stand: "south",
+        row: 0,
+        num: 0,
+        status: "available" as const,
+      }),
+    );
+    await t.run((ctx) =>
+      ctx.db.insert("holds", {
+        seatId,
+        clientHoldId: A_CLIENT,
+        expiresAt: Date.now() + 60_000,
+      }),
+    );
+    // £25 fails (below the £50 premium tier).
+    await expect(
+      t.run((ctx) =>
+        _createDraftForTest(
+          ctx,
+          baseArgs({ clientHoldId: A_CLIENT, seatId, amountPence: 2_500 }),
+        ),
+      ),
+    ).rejects.toMatchObject({ data: "amount_below_minimum" });
+  });
+
+  test("accepts the exact £50 minimum on a premium seat and an upward bump", async () => {
+    const t = convexTest(schema, modules);
+    for (const amount of [5_000, 7_500]) {
+      const seatId = await t.run((ctx) =>
+        ctx.db.insert("seats", {
+          stand: "south",
+          row: 0,
+          num: amount,
+          status: "available" as const,
+        }),
+      );
+      await t.run((ctx) =>
+        ctx.db.insert("holds", {
+          seatId,
+          clientHoldId: A_CLIENT,
+          expiresAt: Date.now() + 60_000,
+        }),
+      );
+      const result = await t.run((ctx) =>
+        _createDraftForTest(
+          ctx,
+          baseArgs({
+            clientHoldId: A_CLIENT,
+            seatId,
+            amountPence: amount,
+            stripeSessionId: `cs_${amount}`,
+          }),
+        ),
+      );
+      const donation = await t.run((ctx) => ctx.db.get(result.donationId));
+      expect(donation?.amountPence).toBe(amount);
+    }
+  });
+
+  test("£25 on a £25 standard (Hollies) seat passes; £24 fails", async () => {
+    const t = convexTest(schema, modules);
+    const seatA = await t.run((ctx) =>
+      ctx.db.insert("seats", {
+        stand: "hollies",
+        row: 0,
+        num: 0,
+        status: "available" as const,
+      }),
+    );
+    const seatB = await t.run((ctx) =>
+      ctx.db.insert("seats", {
+        stand: "hollies",
+        row: 0,
+        num: 1,
+        status: "available" as const,
+      }),
+    );
+    for (const seatId of [seatA, seatB]) {
+      await t.run((ctx) =>
+        ctx.db.insert("holds", {
+          seatId,
+          clientHoldId: A_CLIENT,
+          expiresAt: Date.now() + 60_000,
+        }),
+      );
+    }
+    await expect(
+      t.run((ctx) =>
+        _createDraftForTest(
+          ctx,
+          baseArgs({
+            clientHoldId: A_CLIENT,
+            seatId: seatA,
+            amountPence: 2_400,
+            stripeSessionId: "cs_a",
+          }),
+        ),
+      ),
+    ).rejects.toMatchObject({ data: "amount_below_minimum" });
+    const ok = await t.run((ctx) =>
+      _createDraftForTest(
+        ctx,
+        baseArgs({
+          clientHoldId: A_CLIENT,
+          seatId: seatB,
+          amountPence: 2_500,
+          stripeSessionId: "cs_b",
+        }),
+      ),
+    );
+    expect(ok.donationId).toBeDefined();
   });
 
   test("rejects when there is no active hold for this client", async () => {

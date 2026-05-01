@@ -39,7 +39,7 @@ export function StadiumExperience() {
     return `${standName} · Row ${row.row + 1}, Seat ${row.num + 1}`;
   }, [heldSeatStand]);
 
-  const suggestedPence = heldSeatStand?.stand?.pricePence;
+  const minimumPence = heldSeatStand?.stand?.pricePence;
 
   const closeDonateModal = async () => {
     if (hold && clientHoldId) {
@@ -72,7 +72,7 @@ export function StadiumExperience() {
       <DonateModal
         seatId={donateSeatId}
         seatLabel={seatLabel}
-        suggestedPence={suggestedPence}
+        minimumPence={minimumPence}
         onClose={closeDonateModal}
       />
     </>

@@ -39,6 +39,8 @@ export const EMPTY_DONATE_FORM_VALUE: DonateFormValue = {
 
 interface Props {
   initial?: DonateFormValue;
+  /** Per-seat minimum (defaults to the global £10 floor). */
+  minimumPence?: number;
   onContinue: (value: DonateFormValue) => void;
   onCancel: () => void;
 }
@@ -71,7 +73,12 @@ export function validateDonateForm(value: DonateFormValue): ValidationError[] {
   return errors;
 }
 
-export function DonateForm({ initial, onContinue, onCancel }: Props) {
+export function DonateForm({
+  initial,
+  minimumPence,
+  onContinue,
+  onCancel,
+}: Props) {
   const [value, setValue] = useState<DonateFormValue>(
     initial ?? EMPTY_DONATE_FORM_VALUE,
   );
@@ -100,6 +107,7 @@ export function DonateForm({ initial, onContinue, onCancel }: Props) {
       <StepAmount
         value={value.amountPence}
         onChange={(amountPence) => setValue({ ...value, amountPence })}
+        minimumPence={minimumPence}
       />
 
       <div className="flex flex-col gap-2">
