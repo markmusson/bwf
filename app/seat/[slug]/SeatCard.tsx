@@ -102,27 +102,25 @@ export function SeatCard({ slug }: CardProps) {
         </p>
       ) : (
         <ul
-          className="bg-bwf-navy ring-bwf-blue/30 divide-bwf-blue/15 flex flex-col divide-y rounded-2xl p-5 ring-1"
+          className="bg-bwf-navy ring-bwf-blue/30 divide-bwf-blue/15 flex flex-col divide-y rounded-2xl p-5 text-center ring-1"
           data-testid="seat-tributes"
         >
           {card.tributes.map((tribute) => (
             <li
               key={tribute.tributeId}
               data-testid={`seat-tribute-${tribute.tributeId}`}
-              className="flex flex-col gap-1 py-3 first:pt-0 last:pb-0"
+              className="flex flex-col items-center gap-1 py-3 first:pt-0 last:pb-0"
             >
-              <div className="flex flex-wrap items-baseline justify-between gap-3">
-                <span className="font-display text-base">
-                  {tribute.displayName ?? "Anonymous"}
+              <span className="font-display text-base">
+                {tribute.displayName ?? "Anonymous"}
+              </span>
+              {tribute.amountPence !== null ? (
+                <span className="text-bwf-pale text-xs tracking-wider">
+                  {formatGBP(tribute.amountPence)}
+                  {tribute.giftAid ? " · Gift Aid" : ""}
                 </span>
-                {tribute.amountPence !== null ? (
-                  <span className="text-bwf-pale text-xs tracking-wider">
-                    {formatGBP(tribute.amountPence)}
-                    {tribute.giftAid ? " · Gift Aid" : ""}
-                  </span>
-                ) : null}
-              </div>
-              <p className="text-[15px] leading-snug text-white/90">
+              ) : null}
+              <p className="max-w-prose text-[15px] leading-snug text-white/90">
                 {tribute.text}
               </p>
             </li>

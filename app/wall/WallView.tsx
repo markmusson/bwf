@@ -84,9 +84,9 @@ export function WallView() {
             <li
               key={group.seatId}
               data-testid={`seat-group-${group.seatId}`}
-              className="bg-bwf-navy ring-bwf-blue/30 flex flex-col gap-3 rounded-xl p-4 ring-1"
+              className="bg-bwf-navy ring-bwf-blue/30 flex flex-col items-center gap-3 rounded-xl p-4 text-center ring-1"
             >
-              <div className="flex flex-wrap items-baseline justify-between gap-3 text-xs text-white/65">
+              <div className="flex flex-col items-center gap-1 text-xs text-white/65">
                 <Link
                   href={`/seat/${group.seat.slug}`}
                   className="font-display tracking-widest text-white uppercase hover:text-white"
@@ -101,17 +101,17 @@ export function WallView() {
                 </span>
               </div>
 
-              <ul className="divide-bwf-blue/15 flex flex-col divide-y">
+              <ul className="divide-bwf-blue/15 flex w-full flex-col items-center divide-y">
                 {group.tributes.map((tribute) => (
                   <li
                     key={tribute.tributeId}
                     data-testid={`tribute-${tribute.tributeId}`}
-                    className="flex flex-col gap-1 py-2 first:pt-0 last:pb-0"
+                    className="flex w-full flex-col items-center gap-1 py-2 first:pt-0 last:pb-0"
                   >
                     <span className="font-display text-bwf-pale text-[10px] tracking-[1.5px] uppercase">
                       {tribute.displayName ?? "Anonymous"}
                     </span>
-                    <p className="text-[15px] leading-snug text-white">
+                    <p className="max-w-prose text-[15px] leading-snug text-white">
                       {tribute.text}
                     </p>
                   </li>

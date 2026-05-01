@@ -3,7 +3,7 @@ import { Suspense } from "react";
 import { PostalEntries } from "./PostalEntries";
 
 export const metadata: Metadata = {
-  title: "Postal entries — Blue for Bob 2026 admin",
+  title: "Postal entries",
 };
 
 export default function PostalEntriesPage() {

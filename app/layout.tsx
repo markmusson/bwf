@@ -22,7 +22,10 @@ const barlowCondensed = Barlow_Condensed({
 });
 
 export const metadata: Metadata = {
-  title: "BWF Virtual Seats",
+  title: {
+    default: "Blue for Bob 2026 — The Bob Willis Fund",
+    template: "%s — Blue for Bob 2026",
+  },
   description:
     "Pick a seat at Edgbaston for the Bob Willis Fund. Tribute, avatar, donation from £10.",
 };

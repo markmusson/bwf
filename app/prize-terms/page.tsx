@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { PolicyShell } from "@/app/components/PolicyShell";
 
 export const metadata: Metadata = {
-  title: "Prize draw terms — BWF Virtual Seats",
+  title: "Prize draw terms",
   description:
     "Free prize draw terms for the Blue for Bob 2026 fundraising campaign.",
 };

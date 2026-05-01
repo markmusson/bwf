@@ -29,7 +29,7 @@ export function SeatStatesKey() {
   return (
     <ul
       aria-label="Seat states key"
-      className="flex flex-wrap items-center justify-center gap-3 text-xs text-white/80"
+      className="font-display flex flex-wrap items-center justify-center gap-3 text-[11px] tracking-[1.5px] text-white/80 uppercase"
     >
       {STATES.map((state) => (
         <li key={state.label} className="flex items-center gap-2">

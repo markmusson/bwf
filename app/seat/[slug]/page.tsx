@@ -3,7 +3,7 @@ import { Suspense } from "react";
 import { SeatCard } from "./SeatCard";
 
 export const metadata: Metadata = {
-  title: "A seat at Edgbaston — Blue for Bob 2026",
+  title: "A seat at Edgbaston",
   description:
     "A donor turned this Edgbaston seat blue for the Bob Willis Fund.",
 };

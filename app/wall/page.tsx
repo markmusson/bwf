@@ -3,7 +3,7 @@ import { Suspense } from "react";
 import { WallView } from "./WallView";
 
 export const metadata: Metadata = {
-  title: "The wall — Blue for Bob 2026",
+  title: "The wall",
   description: "Tributes left by donors at Edgbaston for the Bob Willis Fund.",
 };
 

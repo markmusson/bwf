@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { PolicyShell } from "@/app/components/PolicyShell";
 
 export const metadata: Metadata = {
-  title: "Privacy — BWF Virtual Seats",
+  title: "Privacy",
   description:
     "How the Bob Willis Fund collects, uses, and protects your personal data on the Virtual Seats platform.",
 };

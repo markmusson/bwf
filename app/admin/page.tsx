@@ -3,7 +3,7 @@ import { Suspense } from "react";
 import { AdminDashboard } from "./AdminDashboard";
 
 export const metadata: Metadata = {
-  title: "Admin — Blue for Bob 2026",
+  title: "Admin",
 };
 
 export default function AdminPage() {

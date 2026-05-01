@@ -3,7 +3,7 @@ import { Suspense } from "react";
 import { GiftAidExport } from "./GiftAidExport";
 
 export const metadata: Metadata = {
-  title: "Gift Aid export — Blue for Bob 2026 admin",
+  title: "Gift Aid export",
 };
 
 export default function ExportsPage() {

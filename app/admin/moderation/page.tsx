@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { ModerationQueue } from "./ModerationQueue";
 
 export const metadata: Metadata = {
-  title: "Moderation queue · BWF Admin",
+  title: "Moderation queue",
   description: "Approve or reject tributes flagged by the profanity filter.",
 };
 

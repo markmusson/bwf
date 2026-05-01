@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { PolicyShell } from "@/app/components/PolicyShell";
 
 export const metadata: Metadata = {
-  title: "Terms — BWF Virtual Seats",
+  title: "Terms",
   description: "Terms of use for the BWF Virtual Seats fundraising platform.",
 };
 
