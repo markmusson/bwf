@@ -53,9 +53,12 @@ export const stripeWebhook = httpAction(async (ctx, request) => {
         typeof session.payment_intent === "string"
           ? session.payment_intent
           : undefined;
+      const donorEmail =
+        session.customer_details?.email ?? session.customer_email ?? undefined;
       await ctx.runMutation(internal.donations.markPaid, {
         stripeSessionId: session.id,
         paymentIntentId,
+        donorEmail: donorEmail ?? undefined,
       });
     }
   }

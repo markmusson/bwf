@@ -1,6 +1,7 @@
 import { ConvexAuthNextjsServerProvider } from "@convex-dev/auth/nextjs/server";
 import type { Metadata } from "next";
 import { Barlow, Barlow_Condensed } from "next/font/google";
+import { AppNav } from "./components/AppNav";
 import { BrandFooter } from "./components/BrandFooter";
 import { BrandHeader } from "./components/BrandHeader";
 import { CookieBanner } from "./components/CookieBanner";
@@ -40,6 +41,7 @@ export default function RootLayout({
         <ConvexAuthNextjsServerProvider>
           <Providers>
             <BrandHeader />
+            <AppNav />
             <main className="flex flex-1 flex-col">{children}</main>
             <BrandFooter />
             <CookieBanner />

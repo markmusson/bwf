@@ -9,6 +9,7 @@ import { useAction } from "convex/react";
 import { useEffect, useMemo, useState } from "react";
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
+import { getOrCreateClientHoldId } from "@/lib/clientHoldId";
 import { formatGbpPence } from "@/lib/money";
 import type { DonateFormValue } from "./DonateForm";
 
@@ -23,7 +24,11 @@ interface CreateSessionResult {
   donationId: Id<"donations">;
 }
 
-function payloadToActionArgs(seatId: Id<"seats">, payload: DonateFormValue) {
+function payloadToActionArgs(
+  seatId: Id<"seats">,
+  payload: DonateFormValue,
+  clientHoldId: string,
+) {
   const giftAidConfirmations = payload.giftAid.enabled
     ? {
         ukTaxpayer: payload.giftAid.confirmations.ukTaxpayer,
@@ -51,6 +56,7 @@ function payloadToActionArgs(seatId: Id<"seats">, payload: DonateFormValue) {
     : payload.donorName.trim() || undefined;
 
   return {
+    clientHoldId,
     seatId,
     amountPence: payload.amountPence,
     giftAid: payload.giftAid.enabled,
@@ -80,8 +86,9 @@ export function CheckoutPanel({ seatId, payload, onBack }: Props) {
 
     void (async () => {
       try {
+        const clientHoldId = getOrCreateClientHoldId();
         const result: CreateSessionResult = await createSession(
-          payloadToActionArgs(seatId, payload),
+          payloadToActionArgs(seatId, payload, clientHoldId),
         );
         if (!cancelled) {
           setClientSecret(result.clientSecret);

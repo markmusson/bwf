@@ -23,7 +23,7 @@ const giftAidConfirmationsValidator = v.object({
 });
 
 export interface CreateDraftArgs {
-  userId: Id<"users">;
+  clientHoldId: string;
   seatId: Id<"seats">;
   amountPence: number;
   giftAid: boolean;
@@ -49,10 +49,11 @@ export interface CreateDraftResult {
   tributeId: Id<"tributes"> | null;
 }
 
-// Serialisable draft creation. Verifies the donor still holds the seat,
-// inserts donations(status=pending) and (if a tribute was supplied)
-// tributes(status=pending). Webhook flips both on payment success
-// (07 §8). Tested directly via convex-test through this export.
+// Serialisable draft creation. Verifies the visitor still holds the
+// seat under their clientHoldId, inserts donations(status=pending) and
+// (if a tribute was supplied) tributes(status=pending). userId is left
+// undefined here — the webhook attaches one once Stripe confirms the
+// payment and we know the donor's email.
 export async function _createDraftForTest(
   ctx: MutationCtx,
   args: CreateDraftArgs,
@@ -66,7 +67,7 @@ export async function _createDraftForTest(
 
   await consumeRateLimit(
     ctx,
-    `createDraft:${args.userId}`,
+    `createDraft:${args.clientHoldId}`,
     RATE_LIMITS.createDraft,
   );
 
@@ -74,7 +75,7 @@ export async function _createDraftForTest(
     .query("holds")
     .withIndex("by_seat", (q) => q.eq("seatId", args.seatId))
     .first();
-  if (!hold || hold.userId !== args.userId) {
+  if (!hold || hold.clientHoldId !== args.clientHoldId) {
     throw new ConvexError("hold_required");
   }
   if (hold.expiresAt <= Date.now()) {
@@ -82,7 +83,7 @@ export async function _createDraftForTest(
   }
 
   const donationId = await ctx.db.insert("donations", {
-    userId: args.userId,
+    clientHoldId: args.clientHoldId,
     seatId: args.seatId,
     amountPence: args.amountPence,
     currency: "GBP" as const,
@@ -121,7 +122,7 @@ export async function _createDraftForTest(
 // the Checkout Session id. Public donate flow always reaches here.
 export const createDraft = internalMutation({
   args: {
-    userId: v.id("users"),
+    clientHoldId: v.string(),
     seatId: v.id("seats"),
     amountPence: v.number(),
     giftAid: v.boolean(),
@@ -212,14 +213,15 @@ export const giftAidExport = query({
     }> = [];
     for (const donation of paid) {
       if (!donation.giftAid) continue;
-      const user = await ctx.db.get(donation.userId);
+      const user = donation.userId ? await ctx.db.get(donation.userId) : null;
+      const email = user?.email ?? donation.donorEmail ?? null;
       const date = new Date(donation._creationTime);
       const yyyy = date.getUTCFullYear();
       const mm = String(date.getUTCMonth() + 1).padStart(2, "0");
       const dd = String(date.getUTCDate()).padStart(2, "0");
       rows.push({
         donationDate: `${yyyy}-${mm}-${dd}`,
-        email: user?.email ?? null,
+        email,
         displayName: donation.displayName ?? null,
         amountPence: donation.amountPence,
         upliftPence: Math.floor(donation.amountPence / 4),
@@ -230,14 +232,77 @@ export const giftAidExport = query({
   },
 });
 
+// Public read for the post-payment /thanks page. Stripe redirects the
+// donor here with the session_id in the query; we look the donation up
+// and surface a public-safe shape (no email, no Stripe ids, no Gift
+// Aid confirmation timestamp). Returns null if the donation hasn't yet
+// been marked paid by the webhook so the page can keep waiting.
+export const getThanksBySession = query({
+  args: { stripeSessionId: v.string() },
+  handler: async (ctx, { stripeSessionId }) => {
+    const donation = await ctx.db
+      .query("donations")
+      .withIndex("by_session", (q) => q.eq("stripeSessionId", stripeSessionId))
+      .first();
+    if (!donation || donation.status !== "paid") return null;
+
+    const seat = donation.seatId ? await ctx.db.get(donation.seatId) : null;
+    const seatPublic = seat
+      ? {
+          stand: seat.stand,
+          row: seat.row,
+          num: seat.num,
+          slug: `${seat.stand}-${seat.row + 1}-${seat.num + 1}`,
+        }
+      : null;
+
+    const tribute = await ctx.db
+      .query("tributes")
+      .filter((q) => q.eq(q.field("donationId"), donation._id))
+      .first();
+    const tributePublic = tribute
+      ? { text: tribute.text, status: tribute.status }
+      : null;
+
+    return {
+      donationId: donation._id,
+      amountPence: donation.hideAmount ? null : donation.amountPence,
+      giftAid: donation.giftAid,
+      displayName: donation.hideName ? null : (donation.displayName ?? null),
+      seat: seatPublic,
+      tribute: tributePublic,
+    };
+  },
+});
+
 interface MarkPaidArgs {
   stripeSessionId: string;
   paymentIntentId?: string;
+  donorEmail?: string;
 }
 
 interface MarkPaidResult {
   donationId: Id<"donations"> | null;
   alreadyPaid: boolean;
+  userId: Id<"users"> | null;
+}
+
+// Find-or-create the donor user by Stripe customer email. Stripe
+// collects a verified email at checkout, so this is the safest place
+// to attach a user to the donation. Convex Auth's user table accepts
+// loose emails, and a returning donor magic-link signs into the same
+// row by email.
+async function findOrCreateUserByEmail(
+  ctx: MutationCtx,
+  email: string,
+): Promise<Id<"users">> {
+  const normalised = email.trim().toLowerCase();
+  const existing = await ctx.db
+    .query("users")
+    .filter((q) => q.eq(q.field("email"), normalised))
+    .first();
+  if (existing) return existing._id;
+  return await ctx.db.insert("users", { email: normalised });
 }
 
 // Serialisable webhook fan-out: flip donation to paid, mark seat taken,
@@ -255,15 +320,30 @@ export async function _markPaidForTest(
     )
     .first();
   if (!donation) {
-    return { donationId: null, alreadyPaid: false };
+    return { donationId: null, alreadyPaid: false, userId: null };
   }
   if (donation.status === "paid") {
-    return { donationId: donation._id, alreadyPaid: true };
+    return {
+      donationId: donation._id,
+      alreadyPaid: true,
+      userId: donation.userId ?? null,
+    };
+  }
+
+  // Attach a user record at the moment of payment confirmation. Stripe
+  // is the source of truth for the donor's email here.
+  let userId: Id<"users"> | null = donation.userId ?? null;
+  if (!userId && args.donorEmail) {
+    userId = await findOrCreateUserByEmail(ctx, args.donorEmail);
   }
 
   await ctx.db.patch(donation._id, {
     status: "paid" as const,
     stripePaymentIntentId: args.paymentIntentId,
+    donorEmail: args.donorEmail
+      ? args.donorEmail.trim().toLowerCase()
+      : donation.donorEmail,
+    userId: userId ?? undefined,
   });
 
   if (donation.seatId) {
@@ -283,13 +363,14 @@ export async function _markPaidForTest(
     }
   }
 
-  return { donationId: donation._id, alreadyPaid: false };
+  return { donationId: donation._id, alreadyPaid: false, userId };
 }
 
 export const markPaid = internalMutation({
   args: {
     stripeSessionId: v.string(),
     paymentIntentId: v.optional(v.string()),
+    donorEmail: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
     const result = await _markPaidForTest(ctx, args);
@@ -361,11 +442,54 @@ export const listMine = query({
   },
 });
 
-// Public — donor edits their own donation. Auth + ownership enforced;
-// status / amount / stripe ids stay immutable.
+// Public — anonymous-friendly companion to listMine. /manage uses this
+// when the donor hasn't signed in yet: it lists donations created from
+// this browser via clientHoldId. Returns the same shape as listMine so
+// the UI can render either source.
+export const listByClient = query({
+  args: { clientHoldId: v.string() },
+  handler: async (ctx, { clientHoldId }) => {
+    if (clientHoldId.length < 8) return [];
+
+    const donations = await ctx.db
+      .query("donations")
+      .withIndex("by_client", (q) => q.eq("clientHoldId", clientHoldId))
+      .order("desc")
+      .take(50);
+
+    const result: Array<{
+      donation: (typeof donations)[number];
+      tribute: { _id: Id<"tributes">; text: string; status: string } | null;
+      seat: { stand: string; row: number; num: number } | null;
+    }> = [];
+
+    for (const donation of donations) {
+      const tribute = await ctx.db
+        .query("tributes")
+        .withIndex("by_status")
+        .filter((q) => q.eq(q.field("donationId"), donation._id))
+        .first();
+      const seat = donation.seatId ? await ctx.db.get(donation.seatId) : null;
+      result.push({
+        donation,
+        tribute: tribute
+          ? { _id: tribute._id, text: tribute.text, status: tribute.status }
+          : null,
+        seat: seat ? { stand: seat.stand, row: seat.row, num: seat.num } : null,
+      });
+    }
+
+    return result;
+  },
+});
+
+// Public — donor edits their own donation. Either auth+userId match
+// OR a matching clientHoldId is sufficient. Status / amount / stripe
+// ids stay immutable.
 export const update = mutation({
   args: {
     donationId: v.id("donations"),
+    clientHoldId: v.optional(v.string()),
     displayName: v.optional(v.string()),
     hideName: v.optional(v.boolean()),
     hideAmount: v.optional(v.boolean()),
@@ -373,11 +497,17 @@ export const update = mutation({
   },
   handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx);
-    if (!userId) throw new ConvexError("unauthenticated");
-
     const donation = await ctx.db.get(args.donationId);
     if (!donation) throw new ConvexError("not_found");
-    if (donation.userId !== userId) throw new ConvexError("forbidden");
+
+    const userMatches = userId && donation.userId === userId;
+    const clientMatches =
+      args.clientHoldId &&
+      args.clientHoldId.length >= 8 &&
+      donation.clientHoldId === args.clientHoldId;
+    if (!userMatches && !clientMatches) {
+      throw new ConvexError(userId ? "forbidden" : "unauthenticated");
+    }
 
     const patch: {
       displayName?: string;

@@ -1,7 +1,6 @@
 "use node";
 
 import { ConvexError, v } from "convex/values";
-import { getAuthUserId } from "@convex-dev/auth/server";
 import Stripe from "stripe";
 import { internal } from "./_generated/api";
 import type { Id } from "./_generated/dataModel";
@@ -45,9 +44,7 @@ function getProductId(): string {
 
 function getReturnUrl(): string {
   const site = process.env.SITE_URL ?? "http://localhost:3000";
-  // Stripe redirects to /stadium with session_id; the page opens the
-  // confirmation modal in place rather than routing to a separate page.
-  return `${site}/stadium?session_id={CHECKOUT_SESSION_ID}`;
+  return `${site}/thanks?session_id={CHECKOUT_SESSION_ID}`;
 }
 
 // Public action: takes the wizard payload, creates a Stripe Embedded
@@ -57,6 +54,7 @@ function getReturnUrl(): string {
 // EmbeddedCheckout, plus the donationId for the success page.
 export const createSession = action({
   args: {
+    clientHoldId: v.string(),
     seatId: v.id("seats"),
     amountPence: v.number(),
     giftAid: v.boolean(),
@@ -71,8 +69,9 @@ export const createSession = action({
     tributeText: v.optional(v.string()),
   },
   handler: async (ctx, args): Promise<CreateSessionResult> => {
-    const userId = await getAuthUserId(ctx);
-    if (!userId) throw new ConvexError("unauthenticated");
+    if (args.clientHoldId.length < 8) {
+      throw new ConvexError("invalid_client_hold_id");
+    }
 
     if (
       !Number.isInteger(args.amountPence) ||
@@ -118,7 +117,7 @@ export const createSession = action({
     const draft: CreateDraftResult = await ctx.runMutation(
       internal.donations.createDraft,
       {
-        userId,
+        clientHoldId: args.clientHoldId,
         seatId: args.seatId,
         amountPence: args.amountPence,
         giftAid: args.giftAid,

@@ -67,9 +67,18 @@ function stubCanvasRect(width = STADIUM_WIDTH) {
   };
 }
 
+type SeatRow = {
+  _id: string;
+  _creationTime: number;
+  stand: string;
+  row: number;
+  num: number;
+  status: "available" | "taken";
+};
+
 function configureMocks(opts?: {
   authenticated?: boolean;
-  seatRows?: ReturnType<typeof rowsCoveringHollies>;
+  seatRows?: SeatRow[];
   heldIds?: unknown[];
 }) {
   useQueryMock.mockReset();
@@ -129,32 +138,8 @@ describe("StadiumCanvas", () => {
     restore();
   });
 
-  it("redirects to /signin when an unauthenticated donor takes a seat", async () => {
+  it("calls claim with the browser's clientHoldId and emits onSeatClaimed", async () => {
     configureMocks({
-      authenticated: false,
-      seatRows: rowsCoveringHollies(),
-    });
-    const restore = stubCanvasRect();
-    const user = userEvent.setup();
-
-    render(<StadiumCanvas />);
-    const canvas = screen.getByRole("img", { name: /Edgbaston seat map/i });
-    await user.pointer({
-      keys: "[MouseLeft]",
-      target: canvas,
-      coords: { x: SAMPLE_SEAT.x, y: SAMPLE_SEAT.y },
-    });
-    await user.click(
-      screen.getByRole("button", { name: /sign in to take this seat/i }),
-    );
-
-    expect(routerPush).toHaveBeenCalledWith("/signin");
-    restore();
-  });
-
-  it("calls claim and emits onSeatClaimed on success", async () => {
-    configureMocks({
-      authenticated: true,
       seatRows: rowsCoveringHollies(),
     });
     const claim = vi.fn().mockResolvedValue("hold_123");
@@ -173,7 +158,16 @@ describe("StadiumCanvas", () => {
     });
     await user.click(screen.getByRole("button", { name: /take this seat/i }));
 
-    expect(claim).toHaveBeenCalledWith({ seatId: SAMPLE_SEAT_ID });
+    expect(claim).toHaveBeenCalledWith(
+      expect.objectContaining({
+        seatId: SAMPLE_SEAT_ID,
+        clientHoldId: expect.any(String),
+      }),
+    );
+    expect(
+      (claim.mock.calls[0]?.[0] as { clientHoldId: string }).clientHoldId
+        .length,
+    ).toBeGreaterThanOrEqual(8);
     expect(onSeatClaimed).toHaveBeenCalledWith(SAMPLE_SEAT_ID);
     expect(routerPush).not.toHaveBeenCalled();
     restore();
@@ -201,6 +195,28 @@ describe("StadiumCanvas", () => {
 
     expect(await screen.findByRole("alert")).toHaveTextContent(
       /Someone else is taking that seat/i,
+    );
+    restore();
+  });
+
+  it("navigates to /seat/<slug> when the donor clicks a TAKEN seat", async () => {
+    const seats = rowsCoveringHollies().map((row, idx) =>
+      idx === 0 ? { ...row, status: "taken" as const } : row,
+    );
+    configureMocks({ seatRows: seats });
+    const restore = stubCanvasRect();
+    const user = userEvent.setup();
+
+    render(<StadiumCanvas />);
+    const canvas = screen.getByRole("img", { name: /Edgbaston seat map/i });
+    await user.pointer({
+      keys: "[MouseLeft]",
+      target: canvas,
+      coords: { x: SAMPLE_SEAT.x, y: SAMPLE_SEAT.y },
+    });
+
+    expect(routerPush).toHaveBeenCalledWith(
+      `/seat/${SAMPLE_SEAT.standId}-${SAMPLE_SEAT.rowIndex + 1}-${SAMPLE_SEAT.colIndex + 1}`,
     );
     restore();
   });

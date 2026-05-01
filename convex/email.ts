@@ -35,10 +35,17 @@ export const sendReceipt = internalAction({
     if (donation.status !== "paid") return { sent: false, reason: "not_paid" };
     if (donation.receiptSentAt) return { sent: false, reason: "already_sent" };
 
-    const donor = await ctx.runQuery(internal.email.getDonor, {
-      userId: donation.userId,
-    });
-    if (!donor?.email) return { sent: false, reason: "no_email" };
+    const donorEmail = donation.donorEmail ?? null;
+    let donorName: string | null = null;
+    if (donation.userId) {
+      const donor = await ctx.runQuery(internal.email.getDonor, {
+        userId: donation.userId,
+      });
+      donorName = donor?.name ?? null;
+    }
+    const email = donorEmail ?? null;
+    if (!email) return { sent: false, reason: "no_email" };
+    const donor = { email, name: donorName };
 
     const apiKey = process.env.AUTH_RESEND_KEY;
     if (!apiKey) throw new ConvexError("resend_not_configured");

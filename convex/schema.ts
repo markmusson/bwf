@@ -21,12 +21,19 @@ export default defineSchema({
     .index("by_coord", ["stand", "row", "num"])
     .index("by_status", ["status"]),
 
+  // A hold is keyed primarily by clientHoldId — a UUID the browser
+  // stores in localStorage. This means visitors can hold a seat
+  // without signing in, which is the whole point of deferring auth
+  // to the moment of pay. userId stays optional and is filled in
+  // later if the donor signs in (e.g. returning to /manage).
   holds: defineTable({
     seatId: v.id("seats"),
-    userId: v.id("users"),
+    clientHoldId: v.string(),
+    userId: v.optional(v.id("users")),
     expiresAt: v.number(),
   })
     .index("by_seat", ["seatId"])
+    .index("by_client", ["clientHoldId"])
     .index("by_user", ["userId"])
     .index("by_expiry", ["expiresAt"]),
 
@@ -42,7 +49,13 @@ export default defineSchema({
   }).index("by_status", ["status"]),
 
   donations: defineTable({
-    userId: v.id("users"),
+    // Optional during the pending phase — the Stripe webhook attaches
+    // a userId when payment confirms by find-or-creating a user from
+    // the Stripe customer email. clientHoldId is the bridge across
+    // that gap so /thanks and concurrent claims still work.
+    userId: v.optional(v.id("users")),
+    clientHoldId: v.optional(v.string()),
+    donorEmail: v.optional(v.string()),
     seatId: v.optional(v.id("seats")),
     amountPence: v.number(),
     currency: v.literal("GBP"),
@@ -73,6 +86,7 @@ export default defineSchema({
   })
     .index("by_session", ["stripeSessionId"])
     .index("by_user", ["userId"])
+    .index("by_client", ["clientHoldId"])
     .index("by_status", ["status"]),
 
   prizeEntries: defineTable({

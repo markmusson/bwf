@@ -1,5 +1,4 @@
 import { ConvexError, v } from "convex/values";
-import { getAuthUserId } from "@convex-dev/auth/server";
 import type { Id } from "./_generated/dataModel";
 import {
   internalMutation,
@@ -11,16 +10,20 @@ import { consumeRateLimit, RATE_LIMITS } from "./rateLimit";
 
 const HOLD_TTL_MS = 10 * 60 * 1000;
 
-// Serialisable seat-claim core. Exported under a `_*` name so the
-// concurrency test in holds.test.ts can drive it directly via
-// convex-test's `t.run` without having to seed the auth tables.
-// Production code goes through the public `claim` mutation below.
+interface ClaimArgs {
+  seatId: Id<"seats">;
+  clientHoldId: string;
+}
+
+// Serialisable seat-claim core. Keyed by clientHoldId so unauthenticated
+// visitors can hold a seat while they fill in the donate modal. The
+// concurrency guarantee ("exactly one of two simultaneous claims wins")
+// still holds because Convex serialises mutation execution per-document.
 export async function _claimSeatForTest(
   ctx: MutationCtx,
-  seatId: Id<"seats">,
-  userId: Id<"users">,
+  args: ClaimArgs,
 ): Promise<Id<"holds">> {
-  const seat = await ctx.db.get(seatId);
+  const seat = await ctx.db.get(args.seatId);
   if (!seat || seat.status !== "available") {
     throw new ConvexError("seat_unavailable");
   }
@@ -28,65 +31,75 @@ export async function _claimSeatForTest(
   const now = Date.now();
   const existing = await ctx.db
     .query("holds")
-    .withIndex("by_seat", (q) => q.eq("seatId", seatId))
+    .withIndex("by_seat", (q) => q.eq("seatId", args.seatId))
     .first();
 
   if (existing) {
-    if (existing.expiresAt > now && existing.userId !== userId) {
+    if (
+      existing.expiresAt > now &&
+      existing.clientHoldId !== args.clientHoldId
+    ) {
       throw new ConvexError("seat_held");
     }
     await ctx.db.delete(existing._id);
   }
 
   return await ctx.db.insert("holds", {
-    seatId,
-    userId,
+    seatId: args.seatId,
+    clientHoldId: args.clientHoldId,
     expiresAt: now + HOLD_TTL_MS,
   });
 }
 
-// Public: take a seat for 10 minutes. Per 07 §7, exactly one of two
-// concurrent claims for the same seat wins; the other gets seat_held.
+// Public: take a seat for 10 minutes. clientHoldId comes from the
+// browser (a UUID stashed in localStorage). No auth required.
 export const claim = mutation({
-  args: { seatId: v.id("seats") },
-  handler: async (ctx, { seatId }) => {
-    const userId = await getAuthUserId(ctx);
-    if (!userId) throw new ConvexError("unauthenticated");
-    await consumeRateLimit(ctx, `holdClaim:${userId}`, RATE_LIMITS.holdClaim);
-    return await _claimSeatForTest(ctx, seatId, userId);
+  args: {
+    seatId: v.id("seats"),
+    clientHoldId: v.string(),
+  },
+  handler: async (ctx, args) => {
+    if (args.clientHoldId.length < 8) {
+      throw new ConvexError("invalid_client_hold_id");
+    }
+    await consumeRateLimit(
+      ctx,
+      `holdClaim:${args.clientHoldId}`,
+      RATE_LIMITS.holdClaim,
+    );
+    return await _claimSeatForTest(ctx, args);
   },
 });
 
-// Public: donor explicitly releases their hold (e.g. cancel button).
-// Idempotent — releasing someone else's hold or a missing one throws.
+// Public: donor explicitly releases their hold. Idempotent — releasing
+// a missing one is a no-op. Mismatched clientHoldId is rejected.
 export const release = mutation({
-  args: { holdId: v.id("holds") },
-  handler: async (ctx, { holdId }) => {
-    const userId = await getAuthUserId(ctx);
-    if (!userId) throw new ConvexError("unauthenticated");
-
+  args: {
+    holdId: v.id("holds"),
+    clientHoldId: v.string(),
+  },
+  handler: async (ctx, { holdId, clientHoldId }) => {
     const hold = await ctx.db.get(holdId);
     if (!hold) return null;
-    if (hold.userId !== userId) throw new ConvexError("forbidden");
-
+    if (hold.clientHoldId !== clientHoldId) {
+      throw new ConvexError("forbidden");
+    }
     await ctx.db.delete(holdId);
     return null;
   },
 });
 
-// Public: the wizard reads this on mount to recover the donor's active
-// hold (e.g. after a magic-link round-trip).
+// Public: the donate modal reads this on mount to recover the visitor's
+// active hold (e.g. after a Stripe redirect or a page refresh). Keyed
+// by the browser's clientHoldId, no auth required.
 export const getMine = query({
-  args: {},
-  handler: async (ctx) => {
-    const userId = await getAuthUserId(ctx);
-    if (!userId) return null;
-
+  args: { clientHoldId: v.string() },
+  handler: async (ctx, { clientHoldId }) => {
+    if (clientHoldId.length < 8) return null;
     const hold = await ctx.db
       .query("holds")
-      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .withIndex("by_client", (q) => q.eq("clientHoldId", clientHoldId))
       .first();
-
     if (!hold) return null;
     if (hold.expiresAt <= Date.now()) return null;
     return hold;

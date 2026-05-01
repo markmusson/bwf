@@ -97,7 +97,6 @@ describe("rate-limit integration on user-facing mutations", () => {
 
   test("createDraft throws rate_limited after 10 calls in 60s", async () => {
     const t = convexTest(schema, modules);
-    const userId = await t.run((ctx) => ctx.db.insert("users", {}));
     const seatId = await t.run((ctx) =>
       ctx.db.insert("seats", {
         stand: "hollies",
@@ -106,17 +105,18 @@ describe("rate-limit integration on user-facing mutations", () => {
         status: "available" as const,
       }),
     );
+    const clientHoldId = "client-rate-limit";
     await t.run((ctx) =>
       ctx.db.insert("holds", {
         seatId,
-        userId,
+        clientHoldId,
         expiresAt: Date.now() + 60_000,
       }),
     );
 
     const { _createDraftForTest } = await import("./donations");
     const baseArgs = {
-      userId,
+      clientHoldId,
       seatId,
       amountPence: 1000,
       giftAid: false,

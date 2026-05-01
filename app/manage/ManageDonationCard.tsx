@@ -17,6 +17,7 @@ interface Props {
   tributeText: string;
   tributeStatus: string | null;
   seat: { stand: string; row: number; num: number } | null;
+  clientHoldId?: string;
 }
 
 const TRIBUTE_MAX_LENGTH = 280;
@@ -61,16 +62,21 @@ export function ManageDonationCard(props: Props) {
     try {
       const donationPatch: {
         donationId: Id<"donations">;
+        clientHoldId?: string;
         displayName?: string;
         hideName?: boolean;
         hideAmount?: boolean;
       } = { donationId: props.donationId };
+      if (props.clientHoldId) donationPatch.clientHoldId = props.clientHoldId;
       if (displayName !== props.displayName)
         donationPatch.displayName = displayName;
       if (hideName !== props.hideName) donationPatch.hideName = hideName;
       if (hideAmount !== props.hideAmount)
         donationPatch.hideAmount = hideAmount;
-      if (Object.keys(donationPatch).length > 1) {
+      const fieldsChanged = Object.keys(donationPatch).filter(
+        (k) => k !== "donationId" && k !== "clientHoldId",
+      );
+      if (fieldsChanged.length > 0) {
         await updateDonation(donationPatch);
       }
       if (tributeText !== props.tributeText && tributeText.trim().length > 0) {

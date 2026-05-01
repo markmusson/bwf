@@ -14,6 +14,8 @@ import schema from "./schema";
 
 const modules = import.meta.glob("./**/*.ts");
 
+const A_CLIENT = "client-aaaaaaaaaaaa";
+
 async function setup() {
   const t = convexTest(schema, modules);
   const seatId = await t.run(async (ctx) =>
@@ -24,20 +26,19 @@ async function setup() {
       status: "available" as const,
     }),
   );
-  const userId = await t.run((ctx) => ctx.db.insert("users", {}));
   const holdId = await t.run((ctx) =>
     ctx.db.insert("holds", {
       seatId,
-      userId,
+      clientHoldId: A_CLIENT,
       expiresAt: Date.now() + 10 * 60 * 1000,
     }),
   );
-  return { t, seatId, userId, holdId };
+  return { t, seatId, clientHoldId: A_CLIENT, holdId };
 }
 
 function baseArgs(
   overrides: Partial<CreateDraftArgs> &
-    Pick<CreateDraftArgs, "userId" | "seatId">,
+    Pick<CreateDraftArgs, "clientHoldId" | "seatId">,
 ): CreateDraftArgs {
   return {
     amountPence: 1000,
@@ -51,12 +52,12 @@ function baseArgs(
 
 describe("donations.createDraft", () => {
   test("inserts donation(pending) + tribute(pending) when tribute text is set", async () => {
-    const { t, seatId, userId } = await setup();
+    const { t, seatId, clientHoldId } = await setup();
 
     const result = await t.run((ctx) =>
       _createDraftForTest(
         ctx,
-        baseArgs({ userId, seatId, tributeText: "For Bob." }),
+        baseArgs({ clientHoldId, seatId, tributeText: "For Bob." }),
       ),
     );
 
@@ -74,11 +75,11 @@ describe("donations.createDraft", () => {
   });
 
   test("quarantines a tribute that hits the profanity filter", async () => {
-    const { t, seatId, userId } = await setup();
+    const { t, seatId, clientHoldId } = await setup();
     const result = await t.run((ctx) =>
       _createDraftForTest(
         ctx,
-        baseArgs({ userId, seatId, tributeText: "this is fucking bad" }),
+        baseArgs({ clientHoldId, seatId, tributeText: "this is fucking bad" }),
       ),
     );
     const tribute = await t.run((ctx) => ctx.db.get(result.tributeId!));
@@ -87,10 +88,10 @@ describe("donations.createDraft", () => {
   });
 
   test("skips tribute creation when no text supplied", async () => {
-    const { t, seatId, userId } = await setup();
+    const { t, seatId, clientHoldId } = await setup();
 
     const result = await t.run((ctx) =>
-      _createDraftForTest(ctx, baseArgs({ userId, seatId })),
+      _createDraftForTest(ctx, baseArgs({ clientHoldId, seatId })),
     );
 
     expect(result.tributeId).toBeNull();
@@ -99,19 +100,19 @@ describe("donations.createDraft", () => {
   });
 
   test("rejects amounts below the £10 floor", async () => {
-    const { t, seatId, userId } = await setup();
+    const { t, seatId, clientHoldId } = await setup();
 
     await expect(
       t.run((ctx) =>
         _createDraftForTest(
           ctx,
-          baseArgs({ userId, seatId, amountPence: 999 }),
+          baseArgs({ clientHoldId, seatId, amountPence: 999 }),
         ),
       ),
     ).rejects.toMatchObject({ data: "amount_below_minimum" });
   });
 
-  test("rejects when there is no active hold for this user", async () => {
+  test("rejects when there is no active hold for this client", async () => {
     const t = convexTest(schema, modules);
     const seatId = await t.run((ctx) =>
       ctx.db.insert("seats", {
@@ -121,20 +122,23 @@ describe("donations.createDraft", () => {
         status: "available" as const,
       }),
     );
-    const userId = await t.run((ctx) => ctx.db.insert("users", {}));
-
-    await expect(
-      t.run((ctx) => _createDraftForTest(ctx, baseArgs({ userId, seatId }))),
-    ).rejects.toMatchObject({ data: "hold_required" });
-  });
-
-  test("rejects when the hold belongs to another user", async () => {
-    const { t, seatId } = await setup();
-    const otherUser = await t.run((ctx) => ctx.db.insert("users", {}));
 
     await expect(
       t.run((ctx) =>
-        _createDraftForTest(ctx, baseArgs({ userId: otherUser, seatId })),
+        _createDraftForTest(ctx, baseArgs({ clientHoldId: A_CLIENT, seatId })),
+      ),
+    ).rejects.toMatchObject({ data: "hold_required" });
+  });
+
+  test("rejects when the hold belongs to another clientHoldId", async () => {
+    const { t, seatId } = await setup();
+
+    await expect(
+      t.run((ctx) =>
+        _createDraftForTest(
+          ctx,
+          baseArgs({ clientHoldId: "client-zzzzzzzzzzzz", seatId }),
+        ),
       ),
     ).rejects.toMatchObject({ data: "hold_required" });
   });
@@ -149,48 +153,57 @@ describe("donations.createDraft", () => {
         status: "available" as const,
       }),
     );
-    const userId = await t.run((ctx) => ctx.db.insert("users", {}));
     await t.run((ctx) =>
       ctx.db.insert("holds", {
         seatId,
-        userId,
+        clientHoldId: A_CLIENT,
         expiresAt: Date.now() - 1_000,
       }),
     );
 
     await expect(
-      t.run((ctx) => _createDraftForTest(ctx, baseArgs({ userId, seatId }))),
+      t.run((ctx) =>
+        _createDraftForTest(ctx, baseArgs({ clientHoldId: A_CLIENT, seatId })),
+      ),
     ).rejects.toMatchObject({ data: "hold_expired" });
   });
 });
 
 describe("donations.markPaid", () => {
   async function setupDraft() {
-    const { t, seatId, userId } = await setup();
+    const { t, seatId, clientHoldId } = await setup();
     const draft = await t.run((ctx) =>
       _createDraftForTest(
         ctx,
-        baseArgs({ userId, seatId, tributeText: "For Bob." }),
+        baseArgs({ clientHoldId, seatId, tributeText: "For Bob." }),
       ),
     );
-    return { t, seatId, userId, donationId: draft.donationId };
+    return { t, seatId, donationId: draft.donationId };
   }
 
-  test("flips donation to paid, marks seat taken, releases the hold", async () => {
+  test("flips donation to paid, marks seat taken, releases the hold, attaches user by Stripe email", async () => {
     const { t, seatId, donationId } = await setupDraft();
 
     const result = await t.run((ctx) =>
       _markPaidForTest(ctx, {
         stripeSessionId: "cs_test_123",
         paymentIntentId: "pi_test_456",
+        donorEmail: "donor@example.com",
       }),
     );
 
-    expect(result).toEqual({ donationId, alreadyPaid: false });
+    expect(result.donationId).toBe(donationId);
+    expect(result.alreadyPaid).toBe(false);
+    expect(result.userId).not.toBeNull();
 
     const donation = await t.run((ctx) => ctx.db.get(donationId));
     expect(donation?.status).toBe("paid");
     expect(donation?.stripePaymentIntentId).toBe("pi_test_456");
+    expect(donation?.donorEmail).toBe("donor@example.com");
+    expect(donation?.userId).toBe(result.userId!);
+
+    const user = await t.run((ctx) => ctx.db.get(result.userId!));
+    expect(user?.email).toBe("donor@example.com");
 
     const seat = await t.run((ctx) => ctx.db.get(seatId));
     expect(seat?.status).toBe("taken");
@@ -200,24 +213,49 @@ describe("donations.markPaid", () => {
     expect(holds).toHaveLength(0);
   });
 
+  test("reuses an existing user when the Stripe email matches a known account", async () => {
+    const { t, donationId } = await setupDraft();
+    const existing = await t.run((ctx) =>
+      ctx.db.insert("users", { email: "returning@example.com" }),
+    );
+
+    const result = await t.run((ctx) =>
+      _markPaidForTest(ctx, {
+        stripeSessionId: "cs_test_123",
+        donorEmail: "Returning@Example.com",
+      }),
+    );
+
+    expect(result.userId).toBe(existing);
+    const donation = await t.run((ctx) => ctx.db.get(donationId));
+    expect(donation?.userId).toBe(existing);
+    expect(donation?.donorEmail).toBe("returning@example.com");
+  });
+
   test("second call is a no-op and reports alreadyPaid:true", async () => {
     const { t, seatId, donationId } = await setupDraft();
 
     await t.run((ctx) =>
-      _markPaidForTest(ctx, { stripeSessionId: "cs_test_123" }),
+      _markPaidForTest(ctx, {
+        stripeSessionId: "cs_test_123",
+        donorEmail: "donor@example.com",
+      }),
     );
     const second = await t.run((ctx) =>
       _markPaidForTest(ctx, {
         stripeSessionId: "cs_test_123",
         paymentIntentId: "pi_test_secondary",
+        donorEmail: "different@example.com",
       }),
     );
 
-    expect(second).toEqual({ donationId, alreadyPaid: true });
+    expect(second.donationId).toBe(donationId);
+    expect(second.alreadyPaid).toBe(true);
 
     const donation = await t.run((ctx) => ctx.db.get(donationId));
-    // The first call set the payment intent; the second must NOT overwrite.
+    // First call set the payment intent + email; second must NOT overwrite.
     expect(donation?.stripePaymentIntentId).toBeUndefined();
+    expect(donation?.donorEmail).toBe("donor@example.com");
 
     const seat = await t.run((ctx) => ctx.db.get(seatId));
     expect(seat?.status).toBe("taken");
@@ -228,7 +266,11 @@ describe("donations.markPaid", () => {
     const result = await t.run((ctx) =>
       _markPaidForTest(ctx, { stripeSessionId: "cs_test_unknown" }),
     );
-    expect(result).toEqual({ donationId: null, alreadyPaid: false });
+    expect(result).toEqual({
+      donationId: null,
+      alreadyPaid: false,
+      userId: null,
+    });
   });
 });
 
@@ -311,11 +353,11 @@ describe("donations.recordEvent (idempotency)", () => {
   });
 
   test("webhook replay protection: same event twice → one seat update", async () => {
-    const { t, seatId, userId } = await setup();
+    const { t, seatId, clientHoldId } = await setup();
     const draft = await t.run((ctx) =>
       _createDraftForTest(
         ctx,
-        baseArgs({ userId, seatId, tributeText: "For Bob." }),
+        baseArgs({ clientHoldId, seatId, tributeText: "For Bob." }),
       ),
     );
 
@@ -438,5 +480,225 @@ describe("donations.giftAidExport", () => {
     expect(rows[0]?.upliftPence).toBe(625);
     expect(rows[0]?.stripePaymentIntentId).toBe("pi_a");
     expect(rows[0]?.donationDate).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+  });
+});
+
+describe("donations.listByClient (no auth, by browser id)", () => {
+  test("returns donations created from this browser", async () => {
+    const t = convexTest(schema, modules);
+    const donationId = await t.run(async (ctx) => {
+      const seatId = await ctx.db.insert("seats", {
+        stand: "hollies",
+        row: 0,
+        num: 0,
+        status: "taken" as const,
+      });
+      return await ctx.db.insert("donations", {
+        clientHoldId: A_CLIENT,
+        seatId,
+        amountPence: 2500,
+        currency: "GBP" as const,
+        giftAid: true,
+        hideName: false,
+        hideAmount: false,
+        displayName: "Sarah W.",
+        stripeSessionId: "cs_x",
+        status: "paid" as const,
+      });
+    });
+    const rows = await t.query(api.donations.listByClient, {
+      clientHoldId: A_CLIENT,
+    });
+    expect(rows).toHaveLength(1);
+    expect(rows[0]?.donation._id).toBe(donationId);
+  });
+
+  test("returns nothing for a different client id", async () => {
+    const t = convexTest(schema, modules);
+    await t.run((ctx) =>
+      ctx.db.insert("donations", {
+        clientHoldId: A_CLIENT,
+        amountPence: 1000,
+        currency: "GBP" as const,
+        giftAid: false,
+        hideName: false,
+        hideAmount: false,
+        stripeSessionId: "cs_x",
+        status: "paid" as const,
+      }),
+    );
+    const rows = await t.query(api.donations.listByClient, {
+      clientHoldId: "client-zzzzzzzzzzzz",
+    });
+    expect(rows).toEqual([]);
+  });
+});
+
+describe("donations.update (auth or clientHoldId match)", () => {
+  test("rejects when neither auth nor clientHoldId match", async () => {
+    const t = convexTest(schema, modules);
+    const donationId = await t.run((ctx) =>
+      ctx.db.insert("donations", {
+        clientHoldId: A_CLIENT,
+        amountPence: 1000,
+        currency: "GBP" as const,
+        giftAid: false,
+        hideName: false,
+        hideAmount: false,
+        stripeSessionId: "cs_x",
+        status: "paid" as const,
+      }),
+    );
+    await expect(
+      t.mutation(api.donations.update, {
+        donationId,
+        clientHoldId: "client-zzzzzzzzzzzz",
+        displayName: "hijack",
+      }),
+    ).rejects.toMatchObject({ data: "unauthenticated" });
+  });
+
+  test("accepts the patch when clientHoldId matches the donation", async () => {
+    const t = convexTest(schema, modules);
+    const donationId = await t.run((ctx) =>
+      ctx.db.insert("donations", {
+        clientHoldId: A_CLIENT,
+        amountPence: 1000,
+        currency: "GBP" as const,
+        giftAid: false,
+        hideName: false,
+        hideAmount: false,
+        stripeSessionId: "cs_x",
+        status: "paid" as const,
+      }),
+    );
+    await t.mutation(api.donations.update, {
+      donationId,
+      clientHoldId: A_CLIENT,
+      displayName: "Sarah W.",
+    });
+    const updated = await t.run((ctx) => ctx.db.get(donationId));
+    expect(updated?.displayName).toBe("Sarah W.");
+  });
+});
+
+describe("donations.getThanksBySession", () => {
+  test("returns null for an unknown session id", async () => {
+    const t = convexTest(schema, modules);
+    const result = await t.query(api.donations.getThanksBySession, {
+      stripeSessionId: "cs_unknown",
+    });
+    expect(result).toBeNull();
+  });
+
+  test("returns null while the donation is still pending (webhook not yet)", async () => {
+    const t = convexTest(schema, modules);
+    await t.run(async (ctx) => {
+      const userId = await ctx.db.insert("users", {});
+      await ctx.db.insert("donations", {
+        userId,
+        amountPence: 1000,
+        currency: "GBP" as const,
+        giftAid: false,
+        hideName: false,
+        hideAmount: false,
+        stripeSessionId: "cs_thx_pending",
+        status: "pending" as const,
+      });
+    });
+    const result = await t.query(api.donations.getThanksBySession, {
+      stripeSessionId: "cs_thx_pending",
+    });
+    expect(result).toBeNull();
+  });
+
+  test("returns the public-safe shape for a paid donation, including seat slug + tribute", async () => {
+    const t = convexTest(schema, modules);
+    await t.run(async (ctx) => {
+      const userId = await ctx.db.insert("users", {});
+      const seatId = await ctx.db.insert("seats", {
+        stand: "wyatt",
+        row: 2,
+        num: 4,
+        status: "taken" as const,
+      });
+      const donationId = await ctx.db.insert("donations", {
+        userId,
+        seatId,
+        amountPence: 2500,
+        currency: "GBP" as const,
+        giftAid: true,
+        hideName: false,
+        hideAmount: false,
+        displayName: "Sarah W.",
+        stripeSessionId: "cs_thx_paid",
+        status: "paid" as const,
+      });
+      await ctx.db.patch(seatId, { donationId });
+      await ctx.db.insert("tributes", {
+        donationId,
+        text: "For Bob.",
+        status: "approved" as const,
+      });
+    });
+    const result = await t.query(api.donations.getThanksBySession, {
+      stripeSessionId: "cs_thx_paid",
+    });
+    expect(result).toMatchObject({
+      donationId: expect.any(String),
+      amountPence: 2500,
+      giftAid: true,
+      displayName: "Sarah W.",
+      seat: { stand: "wyatt", row: 2, num: 4, slug: "wyatt-3-5" },
+      tribute: { text: "For Bob.", status: "approved" },
+    });
+  });
+
+  test("does not expose the donor's email or stripePaymentIntent", async () => {
+    const t = convexTest(schema, modules);
+    await t.run(async (ctx) => {
+      const userId = await ctx.db.insert("users", {
+        email: "secret@example.com",
+      });
+      await ctx.db.insert("donations", {
+        userId,
+        amountPence: 1000,
+        currency: "GBP" as const,
+        giftAid: false,
+        hideName: false,
+        hideAmount: false,
+        stripeSessionId: "cs_thx_priv",
+        stripePaymentIntentId: "pi_secret",
+        status: "paid" as const,
+      });
+    });
+    const result = await t.query(api.donations.getThanksBySession, {
+      stripeSessionId: "cs_thx_priv",
+    });
+    const json = JSON.stringify(result);
+    expect(json).not.toContain("secret@example.com");
+    expect(json).not.toContain("pi_secret");
+  });
+
+  test("masks the display name when hideName is true (renders Anonymous)", async () => {
+    const t = convexTest(schema, modules);
+    await t.run(async (ctx) => {
+      const userId = await ctx.db.insert("users", {});
+      await ctx.db.insert("donations", {
+        userId,
+        amountPence: 1000,
+        currency: "GBP" as const,
+        giftAid: false,
+        hideName: true,
+        hideAmount: false,
+        displayName: "Sarah W.",
+        stripeSessionId: "cs_thx_anon",
+        status: "paid" as const,
+      });
+    });
+    const result = await t.query(api.donations.getThanksBySession, {
+      stripeSessionId: "cs_thx_anon",
+    });
+    expect(result?.displayName).toBeNull();
   });
 });

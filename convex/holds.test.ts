@@ -10,30 +10,33 @@ import { _claimSeatForTest } from "./holds";
 
 const modules = import.meta.glob("./**/*.ts");
 
-async function setup() {
+const A_CLIENT = "client-aaaaaaaaaaaa";
+const B_CLIENT = "client-bbbbbbbbbbbb";
+
+async function setupSeat(status: "available" | "taken" = "available") {
   const t = convexTest(schema, modules);
-  const seatId = await t.run(async (ctx) =>
+  const seatId = await t.run((ctx) =>
     ctx.db.insert("seats", {
       stand: "hollies",
       row: 0,
       num: 0,
-      status: "available" as const,
+      status,
     }),
   );
-  const [u1, u2] = await Promise.all([
-    t.run(async (ctx) => ctx.db.insert("users", {})),
-    t.run(async (ctx) => ctx.db.insert("users", {})),
-  ]);
-  return { t, seatId, u1: u1!, u2: u2! };
+  return { t, seatId };
 }
 
-describe("holds.claim concurrency", () => {
+describe("holds.claim concurrency (clientHoldId-keyed, no auth)", () => {
   test("two simultaneous claims for the same seat — exactly one wins", async () => {
-    const { t, seatId, u1, u2 } = await setup();
+    const { t, seatId } = await setupSeat();
 
     const results = await Promise.allSettled([
-      t.run((ctx) => _claimSeatForTest(ctx, seatId, u1)),
-      t.run((ctx) => _claimSeatForTest(ctx, seatId, u2)),
+      t.run((ctx) =>
+        _claimSeatForTest(ctx, { seatId, clientHoldId: A_CLIENT }),
+      ),
+      t.run((ctx) =>
+        _claimSeatForTest(ctx, { seatId, clientHoldId: B_CLIENT }),
+      ),
     ]);
 
     const fulfilled = results.filter((r) => r.status === "fulfilled");
@@ -46,54 +49,93 @@ describe("holds.claim concurrency", () => {
     expect(losingError).toBeInstanceOf(ConvexError);
     expect((losingError as ConvexError<string>).data).toBe("seat_held");
 
-    const holds = await t.run(async (ctx) => ctx.db.query("holds").collect());
+    const holds = await t.run((ctx) => ctx.db.query("holds").collect());
     expect(holds).toHaveLength(1);
   });
 
-  test("re-claiming your own active hold no-ops (replaces the row)", async () => {
-    const { t, seatId, u1 } = await setup();
+  test("re-claiming with the same clientHoldId no-ops (replaces the row)", async () => {
+    const { t, seatId } = await setupSeat();
 
-    await t.run((ctx) => _claimSeatForTest(ctx, seatId, u1));
-    await t.run((ctx) => _claimSeatForTest(ctx, seatId, u1));
+    await t.run((ctx) =>
+      _claimSeatForTest(ctx, { seatId, clientHoldId: A_CLIENT }),
+    );
+    await t.run((ctx) =>
+      _claimSeatForTest(ctx, { seatId, clientHoldId: A_CLIENT }),
+    );
 
-    const holds = await t.run(async (ctx) => ctx.db.query("holds").collect());
+    const holds = await t.run((ctx) => ctx.db.query("holds").collect());
     expect(holds).toHaveLength(1);
-    expect(holds[0]?.userId).toBe(u1);
+    expect(holds[0]?.clientHoldId).toBe(A_CLIENT);
   });
 
-  test("an expired hold from another user lets the next user claim", async () => {
-    const { t, seatId, u1, u2 } = await setup();
+  test("an expired hold from another client lets the next claim win", async () => {
+    const { t, seatId } = await setupSeat();
 
-    await t.run(async (ctx) =>
+    await t.run((ctx) =>
       ctx.db.insert("holds", {
         seatId,
-        userId: u1,
+        clientHoldId: A_CLIENT,
         expiresAt: Date.now() - 1_000,
       }),
     );
 
-    await t.run((ctx) => _claimSeatForTest(ctx, seatId, u2));
+    await t.run((ctx) =>
+      _claimSeatForTest(ctx, { seatId, clientHoldId: B_CLIENT }),
+    );
 
-    const holds = await t.run(async (ctx) => ctx.db.query("holds").collect());
+    const holds = await t.run((ctx) => ctx.db.query("holds").collect());
     expect(holds).toHaveLength(1);
-    expect(holds[0]?.userId).toBe(u2);
+    expect(holds[0]?.clientHoldId).toBe(B_CLIENT);
   });
 
   test("seat already taken — rejects with seat_unavailable", async () => {
-    const t = convexTest(schema, modules);
-    const seatId = await t.run(async (ctx) =>
-      ctx.db.insert("seats", {
-        stand: "hollies",
-        row: 0,
-        num: 0,
-        status: "taken" as const,
-      }),
-    );
-    const u1 = await t.run((ctx) => ctx.db.insert("users", {}));
+    const { t, seatId } = await setupSeat("taken");
 
     await expect(
-      t.run((ctx) => _claimSeatForTest(ctx, seatId, u1)),
+      t.run((ctx) =>
+        _claimSeatForTest(ctx, { seatId, clientHoldId: A_CLIENT }),
+      ),
     ).rejects.toMatchObject({ data: "seat_unavailable" });
+  });
+});
+
+describe("holds.getMine (no auth, keyed by clientHoldId)", () => {
+  test("returns the active hold for the caller's clientHoldId", async () => {
+    const { t, seatId } = await setupSeat();
+    await t.run((ctx) =>
+      _claimSeatForTest(ctx, { seatId, clientHoldId: A_CLIENT }),
+    );
+    const result = await t.query(api.holds.getMine, {
+      clientHoldId: A_CLIENT,
+    });
+    expect(result?.seatId).toBe(seatId);
+    expect(result?.clientHoldId).toBe(A_CLIENT);
+  });
+
+  test("returns null for a different clientHoldId", async () => {
+    const { t, seatId } = await setupSeat();
+    await t.run((ctx) =>
+      _claimSeatForTest(ctx, { seatId, clientHoldId: A_CLIENT }),
+    );
+    const result = await t.query(api.holds.getMine, {
+      clientHoldId: B_CLIENT,
+    });
+    expect(result).toBeNull();
+  });
+
+  test("returns null once the hold has expired", async () => {
+    const { t, seatId } = await setupSeat();
+    await t.run((ctx) =>
+      ctx.db.insert("holds", {
+        seatId,
+        clientHoldId: A_CLIENT,
+        expiresAt: Date.now() - 1_000,
+      }),
+    );
+    const result = await t.query(api.holds.getMine, {
+      clientHoldId: A_CLIENT,
+    });
+    expect(result).toBeNull();
   });
 });
 
@@ -118,24 +160,51 @@ describe("holds.activeSeatIds", () => {
         }),
       ),
     ]);
-    const u1 = await t.run((ctx) => ctx.db.insert("users", {}));
 
     await t.run((ctx) =>
       ctx.db.insert("holds", {
         seatId: seatA!,
-        userId: u1,
+        clientHoldId: A_CLIENT,
         expiresAt: Date.now() + 60_000,
       }),
     );
     await t.run((ctx) =>
       ctx.db.insert("holds", {
         seatId: seatB!,
-        userId: u1,
+        clientHoldId: B_CLIENT,
         expiresAt: Date.now() - 60_000,
       }),
     );
 
     const ids = await t.query(api.holds.activeSeatIds, {});
     expect(ids).toEqual([seatA]);
+  });
+});
+
+describe("holds.release", () => {
+  test("removes the hold when called with the matching clientHoldId", async () => {
+    const { t, seatId } = await setupSeat();
+    const holdId = await t.run((ctx) =>
+      _claimSeatForTest(ctx, { seatId, clientHoldId: A_CLIENT }),
+    );
+    await t.mutation(api.holds.release, {
+      holdId,
+      clientHoldId: A_CLIENT,
+    });
+    const holds = await t.run((ctx) => ctx.db.query("holds").collect());
+    expect(holds).toHaveLength(0);
+  });
+
+  test("rejects when the clientHoldId doesn't match", async () => {
+    const { t, seatId } = await setupSeat();
+    const holdId = await t.run((ctx) =>
+      _claimSeatForTest(ctx, { seatId, clientHoldId: A_CLIENT }),
+    );
+    await expect(
+      t.mutation(api.holds.release, {
+        holdId,
+        clientHoldId: B_CLIENT,
+      }),
+    ).rejects.toMatchObject({ data: "forbidden" });
   });
 });

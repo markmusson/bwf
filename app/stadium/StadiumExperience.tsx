@@ -1,13 +1,12 @@
 "use client";
 
 import { useMutation, useQuery } from "convex/react";
-import { useRouter, useSearchParams } from "next/navigation";
 import { useMemo } from "react";
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
 import { BWF } from "@/lib/branding";
+import { useClientHoldId } from "@/lib/clientHoldId";
 import { STANDS } from "@/lib/stands";
-import { ConfirmationOverlay } from "./ConfirmationOverlay";
 import { Countdown } from "./Countdown";
 import { DonateModal } from "./DonateModal";
 import { ProgressBar } from "./ProgressBar";
@@ -17,12 +16,14 @@ import { StandLegend } from "./StandLegend";
 import { StatsBar } from "./StatsBar";
 
 export function StadiumExperience() {
-  const hold = useQuery(api.holds.getMine);
+  const clientHoldId = useClientHoldId();
+
+  const hold = useQuery(
+    api.holds.getMine,
+    clientHoldId ? { clientHoldId } : "skip",
+  );
   const seats = useQuery(api.seats.list);
   const releaseHold = useMutation(api.holds.release);
-  const router = useRouter();
-  const searchParams = useSearchParams();
-  const sessionId = searchParams.get("session_id");
 
   const seatLabel = useMemo<string | null>(() => {
     if (!hold || !seats) return null;
@@ -34,23 +35,16 @@ export function StadiumExperience() {
   }, [hold, seats]);
 
   const closeDonateModal = async () => {
-    if (hold) {
+    if (hold && clientHoldId) {
       try {
-        await releaseHold({ holdId: hold._id });
+        await releaseHold({ holdId: hold._id, clientHoldId });
       } catch {
         // best-effort release; cron will clean up if this fails
       }
     }
   };
 
-  const closeConfirmationOverlay = () => {
-    router.replace("/stadium");
-  };
-
-  // Modal shows the donate form whenever the donor holds a seat AND we
-  // aren't already on the post-payment confirmation pane.
-  const donateSeatId: Id<"seats"> | null =
-    hold && !sessionId ? hold.seatId : null;
+  const donateSeatId: Id<"seats"> | null = hold ? hold.seatId : null;
 
   return (
     <>
@@ -70,11 +64,6 @@ export function StadiumExperience() {
         seatId={donateSeatId}
         seatLabel={seatLabel}
         onClose={closeDonateModal}
-      />
-
-      <ConfirmationOverlay
-        sessionId={sessionId}
-        onClose={closeConfirmationOverlay}
       />
     </>
   );

@@ -1,11 +1,12 @@
 "use client";
 
-import { useConvexAuth, useMutation, useQuery } from "convex/react";
+import { useMutation, useQuery } from "convex/react";
 import { ConvexError } from "convex/values";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState, type MouseEvent } from "react";
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
+import { useClientHoldId } from "@/lib/clientHoldId";
 import {
   buildAllSeats,
   CENTER_X,
@@ -205,8 +206,8 @@ export function StadiumCanvas({ onSeatClaimed }: Props) {
   const seatRows = useQuery(api.seats.list);
   const heldIds = useQuery(api.holds.activeSeatIds);
   const claimSeat = useMutation(api.holds.claim);
-  const { isAuthenticated, isLoading: authLoading } = useConvexAuth();
   const router = useRouter();
+  const clientHoldId = useClientHoldId();
 
   const layout = useMemo(() => buildAllSeats(STANDS), []);
 
@@ -312,14 +313,27 @@ export function StadiumCanvas({ onSeatClaimed }: Props) {
     const x = (event.clientX - rect.left) / scale;
     const y = (event.clientY - rect.top) / scale;
     const hit = findSeatAt(layout, x, y);
+    if (hit) {
+      const status = statusByKey.get(
+        statusKey(hit.standId, hit.rowIndex, hit.colIndex),
+      );
+      if (status === "taken") {
+        // Click-through to the public share card. The donate flow
+        // never starts on a taken seat — that's a dead end UX.
+        router.push(
+          `/seat/${hit.standId}-${hit.rowIndex + 1}-${hit.colIndex + 1}`,
+        );
+        return;
+      }
+      setError(null);
+    }
     setSelected(hit);
-    if (hit) setError(null);
   };
 
   const takeSeat = async () => {
     if (!selected) return;
-    if (!isAuthenticated) {
-      router.push("/signin");
+    if (!clientHoldId) {
+      setError("Still warming up. Try again in a moment.");
       return;
     }
     const seatId = idByKey.get(
@@ -333,7 +347,7 @@ export function StadiumCanvas({ onSeatClaimed }: Props) {
     setSubmitting(true);
     setError(null);
     try {
-      await claimSeat({ seatId });
+      await claimSeat({ seatId, clientHoldId });
       onSeatClaimed?.(seatId);
       setSelected(null);
     } catch (err) {
@@ -404,14 +418,10 @@ export function StadiumCanvas({ onSeatClaimed }: Props) {
             <button
               type="button"
               onClick={takeSeat}
-              disabled={submitting || authLoading}
+              disabled={submitting || !clientHoldId}
               className="font-display bg-bwf-blue hover:bg-bwf-blue-light self-start rounded-full px-6 py-2.5 text-sm tracking-wider text-white transition-colors disabled:opacity-50"
             >
-              {submitting
-                ? "Taking your seat…"
-                : isAuthenticated
-                  ? "Take this seat"
-                  : "Sign in to take this seat"}
+              {submitting ? "Taking your seat…" : "Take this seat"}
             </button>
           </>
         ) : (
