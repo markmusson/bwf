@@ -48,7 +48,7 @@ describe("ThanksView", () => {
     ).toBeInTheDocument();
   });
 
-  it("shows the donation summary once paid + tribute approved", () => {
+  it("shows the mock-style 'Seat is blue!' confirmation with a Bob Willis line", () => {
     arrange({
       sessionId: "cs_x",
       data: {
@@ -61,10 +61,12 @@ describe("ThanksView", () => {
       },
     });
     render(<ThanksView />);
-    expect(screen.getByText(/Thanks, Sarah W./i)).toBeInTheDocument();
+    expect(
+      screen.getByRole("heading", { name: /Seat is blue!/i }),
+    ).toBeInTheDocument();
+    expect(screen.getByText(/Bob would be proud/i)).toBeInTheDocument();
     expect(screen.getByText(/£25/)).toBeInTheDocument();
     expect(screen.getByText(/Gift Aid/i)).toBeInTheDocument();
-    expect(screen.getByText("For Bob.")).toBeInTheDocument();
     const link = screen.getByRole("link", { name: /share this seat/i });
     expect(link).toHaveAttribute("href", "/seat/wyatt-3-5");
   });
@@ -85,7 +87,7 @@ describe("ThanksView", () => {
     expect(screen.getByText(/tribute is being reviewed/i)).toBeInTheDocument();
   });
 
-  it("renders Anonymous when the donor hid their name", () => {
+  it("renders the seat-is-blue confirmation when the donor hid their name", () => {
     arrange({
       sessionId: "cs_x",
       data: {
@@ -93,11 +95,14 @@ describe("ThanksView", () => {
         amountPence: 1000,
         giftAid: false,
         displayName: null,
-        seat: null,
+        seat: { stand: "wyatt", row: 0, num: 0, slug: "wyatt-1-1" },
         tribute: null,
       },
     });
     render(<ThanksView />);
-    expect(screen.getByText(/Thanks for your donation/i)).toBeInTheDocument();
+    expect(
+      screen.getByRole("heading", { name: /Seat is blue!/i }),
+    ).toBeInTheDocument();
+    expect(screen.getByText(/Anonymous/i)).toBeInTheDocument();
   });
 });

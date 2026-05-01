@@ -52,6 +52,41 @@ export const seedSeats = internalMutation({
   },
 });
 
+// Wipe seats + holds and re-insert the geometry from scratch. Run when
+// STANDS changes shape so the canvas geometry and the DB rows agree on
+// every (stand, row, num). DESTRUCTIVE: existing donations.seatId
+// references are orphaned and any held seats are released. Use:
+//   npx convex run seats:reseedAll
+export const reseedAll = internalMutation({
+  args: {},
+  handler: async (ctx) => {
+    let deletedSeats = 0;
+    let deletedHolds = 0;
+    for (const hold of await ctx.db.query("holds").take(5000)) {
+      await ctx.db.delete(hold._id);
+      deletedHolds += 1;
+    }
+    for (const seat of await ctx.db.query("seats").take(5000)) {
+      await ctx.db.delete(seat._id);
+      deletedSeats += 1;
+    }
+    const seats = buildAllSeats(STANDS);
+    for (const seat of seats) {
+      await ctx.db.insert("seats", {
+        stand: seat.standId,
+        row: seat.rowIndex,
+        num: seat.colIndex,
+        status: "available",
+      });
+    }
+    return {
+      deletedSeats,
+      deletedHolds,
+      inserted: seats.length,
+    };
+  },
+});
+
 // Admin-callable counter so we can verify the seed without dumping rows.
 export const count = query({
   args: {

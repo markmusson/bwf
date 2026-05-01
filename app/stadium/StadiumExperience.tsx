@@ -70,6 +70,7 @@ export function StadiumExperience() {
       </section>
 
       <DonateModal
+        key={`${donateSeatId ?? "none"}-${minimumPence ?? "x"}`}
         seatId={donateSeatId}
         seatLabel={seatLabel}
         minimumPence={minimumPence}

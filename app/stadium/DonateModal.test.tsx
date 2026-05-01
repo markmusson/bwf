@@ -71,7 +71,7 @@ describe("DonateModal", () => {
     await user.click(screen.getByLabelText(/happy to be contacted/i));
     await user.click(screen.getByLabelText("£25.00"));
     await user.click(
-      screen.getByRole("button", { name: /Continue to payment/i }),
+      screen.getByRole("button", { name: /Donate.{0,5}turn my seat blue/i }),
     );
 
     expect(

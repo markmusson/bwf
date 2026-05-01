@@ -56,66 +56,72 @@ export function ThanksView() {
 
   return (
     <Wrapper>
-      <header className="flex flex-col gap-1 text-center">
-        <p className="text-bwf-pale text-xs tracking-widest uppercase">
-          Donation confirmed
-        </p>
-        <h1 className="font-display text-3xl">
-          {name ? `Thanks, ${name}.` : "Thanks for your donation."}
-        </h1>
-        {data.seat ? (
-          <p className="text-sm text-white/70">
-            Your seat is now{" "}
-            <span className="text-bwf-pale">
-              blue for Bob — {data.seat.slug}
-            </span>
-            .
-          </p>
-        ) : null}
-      </header>
-
-      <div className="bg-bwf-navy ring-bwf-blue/30 flex flex-col gap-3 rounded-2xl p-6 ring-1">
-        <div className="flex flex-wrap items-baseline justify-between gap-3">
-          <span className="font-display text-lg">{name ?? "Anonymous"}</span>
-          {data.amountPence !== null ? (
-            <span className="text-bwf-pale text-sm">
-              {formatGBP(data.amountPence)}
-              {data.giftAid ? " · Gift Aid" : ""}
-            </span>
-          ) : null}
+      <div className="flex flex-col items-center gap-3 text-center">
+        <div className="bg-bwf-blue flex h-16 w-16 items-center justify-center rounded-full">
+          <svg viewBox="0 0 24 24" fill="none" aria-hidden className="h-8 w-8">
+            <path
+              d="M5 13l4 4L19 7"
+              stroke="white"
+              strokeWidth="2.5"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          </svg>
         </div>
-        {data.tribute ? (
-          data.tribute.status === "approved" ? (
-            <p className="text-base text-white/90">{data.tribute.text}</p>
-          ) : (
-            <p className="text-sm text-amber-200/90">
-              Your tribute is being reviewed before it goes on the wall.
-            </p>
-          )
+
+        <h1 className="font-display text-[30px] font-black tracking-wider uppercase">
+          Seat is blue!
+        </h1>
+        <p className="text-[13px] leading-relaxed text-white/65">
+          Thank you for supporting the Bob Willis Fund. Your donation helps fund
+          life-saving prostate cancer research. Bob would be proud.
+        </p>
+
+        {data.seat ? (
+          <div className="ring-bwf-blue/25 font-display my-2 w-full rounded-lg bg-[rgba(0,133,202,0.14)] px-4 py-3 text-left text-[13px] font-bold tracking-[0.5px] text-[var(--color-bwf-blue-light)] uppercase ring-1">
+            <div>
+              {data.seat.stand.replace(/^./, (c) => c.toUpperCase())} Stand —
+              Row {data.seat.row + 1}, Seat {data.seat.num + 1}
+            </div>
+            {data.amountPence !== null ? (
+              <div>
+                {formatGBP(data.amountPence)}
+                {data.giftAid ? " · Gift Aid" : ""} · {name ?? "Anonymous"}
+              </div>
+            ) : null}
+          </div>
+        ) : null}
+
+        {data.tribute && data.tribute.status === "pending" ? (
+          <p className="text-xs text-amber-200/85">
+            Your tribute is being reviewed before it goes on the wall.
+          </p>
         ) : null}
       </div>
 
-      <div className="flex flex-wrap justify-center gap-3">
+      <div className="flex flex-col gap-2">
         {data.seat ? (
           <Link
             href={`/seat/${data.seat.slug}`}
-            className="bg-bwf-pale text-bwf-navy font-display rounded-full px-5 py-2 text-sm tracking-wider uppercase"
+            className="bg-bwf-blue hover:bg-bwf-blue-light font-display w-full rounded-lg px-6 py-3.5 text-center text-[18px] font-black tracking-[1px] text-white uppercase transition-colors"
           >
             Share this seat
           </Link>
         ) : null}
-        <Link
-          href="/wall"
-          className="ring-bwf-pale/40 font-display rounded-full px-5 py-2 text-sm tracking-wider uppercase ring-1 hover:bg-white/10"
-        >
-          See the wall
-        </Link>
-        <Link
-          href="/manage"
-          className="ring-bwf-pale/40 font-display rounded-full px-5 py-2 text-sm tracking-wider uppercase ring-1 hover:bg-white/10"
-        >
-          Manage my donation
-        </Link>
+        <div className="grid grid-cols-2 gap-2">
+          <Link
+            href="/wall"
+            className="font-display rounded-lg border border-white/15 px-4 py-2.5 text-center text-[13px] font-bold tracking-[0.5px] text-white/65 uppercase hover:border-[var(--color-bwf-blue)] hover:text-white"
+          >
+            See the wall
+          </Link>
+          <Link
+            href="/manage"
+            className="font-display rounded-lg border border-white/15 px-4 py-2.5 text-center text-[13px] font-bold tracking-[0.5px] text-white/65 uppercase hover:border-[var(--color-bwf-blue)] hover:text-white"
+          >
+            Manage donation
+          </Link>
+        </div>
       </div>
     </Wrapper>
   );

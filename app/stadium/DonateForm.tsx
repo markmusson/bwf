@@ -164,19 +164,19 @@ export function DonateForm({
         showError={showErrors && errorByField.has("marketing")}
       />
 
-      <div className="flex flex-wrap items-center justify-between gap-3">
+      <div className="flex flex-col gap-2">
+        <button
+          type="submit"
+          className="bg-bwf-blue hover:bg-bwf-blue-light font-display w-full rounded-lg px-6 py-3.5 text-[18px] font-black tracking-[1px] text-white uppercase transition-colors"
+        >
+          Donate &amp; turn my seat blue
+        </button>
         <button
           type="button"
           onClick={onCancel}
-          className="ring-bwf-blue/40 rounded-full px-5 py-2 text-sm font-medium ring-1"
+          className="font-display w-full rounded-lg border border-white/15 bg-transparent px-6 py-2.5 text-[13px] font-bold tracking-[0.5px] text-white/45 uppercase transition-colors hover:border-[var(--color-bwf-blue)] hover:text-[var(--color-bwf-blue-light)]"
         >
           Cancel
-        </button>
-        <button
-          type="submit"
-          className="bg-bwf-blue hover:bg-bwf-accent rounded-full px-6 py-2.5 text-sm font-semibold text-white transition-colors"
-        >
-          Continue to payment
         </button>
       </div>
     </form>
