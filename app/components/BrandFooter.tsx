@@ -9,7 +9,7 @@ export function BrandFooter() {
   return (
     <footer
       role="contentinfo"
-      className="bg-bwf-dark mt-2 border-t border-white/12 px-5 py-6 text-center text-[12px] font-normal leading-[1.8] text-white/40"
+      className="bg-bwf-dark mt-2 border-t border-white/12 px-5 py-6 text-center text-[12px] leading-[1.8] font-normal text-white/40"
     >
       <strong className="font-semibold text-white/70">
         The Bob Willis Fund
