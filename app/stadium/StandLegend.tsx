@@ -24,7 +24,7 @@ export function StandLegend({ onStandClick }: Props) {
   return (
     <ul
       aria-label="Stands"
-      className="font-display flex flex-wrap items-stretch justify-center gap-1.5 text-[11px] font-medium tracking-[1px] text-white/80 uppercase"
+      className="font-display flex flex-wrap items-stretch justify-center gap-1.5 text-[11px] font-normal tracking-[1px] text-white/80 uppercase"
     >
       {STANDS.map((stand) => {
         const stat = counts?.[stand.id] ?? { taken: 0, total: 0 };
@@ -54,7 +54,7 @@ export function StandLegend({ onStandClick }: Props) {
               <span className="relative text-white">{stand.name}</span>
               <span
                 data-testid={`stand-price-${stand.id}`}
-                className="text-bwf-gold relative ml-1 font-medium tracking-wider"
+                className="text-bwf-gold relative ml-1 font-normal tracking-wider"
               >
                 {formatPrice(stand.pricePence)}
               </span>
