@@ -460,19 +460,21 @@ export function StadiumCanvas({ onSeatClaimed }: Props) {
           <div
             role="tooltip"
             data-testid="seat-tooltip"
-            className="bg-bwf-navy ring-bwf-blue pointer-events-none absolute z-10 max-w-[260px] -translate-x-1/2 -translate-y-full rounded-lg px-3 py-2 text-[11px] text-white ring-1"
+            className="bg-bwf-navy ring-bwf-blue pointer-events-none absolute z-10 w-[240px] -translate-x-1/2 -translate-y-full rounded-lg px-3 py-2 text-[11px] text-white ring-1"
             style={{ left: tooltipPos.left, top: tooltipPos.top }}
           >
-            <div className="font-display flex items-baseline gap-2 tracking-wider whitespace-nowrap uppercase">
-              <span>{tooltipText}</span>
-              <span className="text-bwf-gold">{tooltipStatus}</span>
+            <div className="font-display tracking-wider uppercase">
+              {tooltipText}
+            </div>
+            <div className="font-display text-bwf-gold mt-0.5 text-[10px] tracking-wider uppercase">
+              {tooltipStatus}
             </div>
             {tooltipTribute ? (
-              <div className="mt-1.5 flex flex-col gap-0.5">
+              <div className="border-bwf-blue/30 mt-2 flex flex-col gap-0.5 border-t pt-2">
                 <span className="font-display text-bwf-pale text-[9px] tracking-[1.5px] uppercase">
                   {tooltipTribute.name}
                 </span>
-                <span className="text-[12px] leading-snug whitespace-normal text-white/95">
+                <span className="text-[12px] leading-snug text-white/95">
                   “{tooltipTribute.text}”
                 </span>
               </div>
