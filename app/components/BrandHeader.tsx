@@ -1,32 +1,18 @@
-import Image from "next/image";
-import Link from "next/link";
 import { BWF } from "@/lib/branding";
 
+// The BWF mark used to live here as a logo tile; it's now rendered
+// dead-centre on the stadium pitch (see StadiumCanvas overlay), which
+// is a more dramatic placement and saves header height. Title +
+// match-info pills only.
 export function BrandHeader() {
   return (
     <header
       role="banner"
-      className="border-b-[3px] px-5 py-4 text-white"
+      className="border-b-[3px] px-5 py-3 text-white"
       style={{ backgroundColor: "#153A5D", borderBottomColor: "#3A83C5" }}
     >
-      <div className="mx-auto flex max-w-3xl flex-col items-center gap-2.5 text-center">
-        <Link
-          href="/stadium"
-          aria-label="The Bob Willis Fund — home"
-          className="flex flex-shrink-0 items-center justify-center rounded-2xl p-2"
-          style={{ backgroundColor: "#3E8BCE" }}
-        >
-          <Image
-            src="/brand/bwf-logo-square.svg"
-            alt="The Bob Willis Fund"
-            width={72}
-            height={72}
-            priority
-            className="h-14 w-14 sm:h-16 sm:w-16"
-          />
-        </Link>
-
-        <h1 className="font-display text-[clamp(32px,7vw,54px)] leading-none font-black tracking-[1px] uppercase">
+      <div className="mx-auto flex max-w-3xl flex-col items-center gap-2 text-center">
+        <h1 className="font-display text-[clamp(28px,6vw,48px)] leading-none font-black tracking-[1px] uppercase">
           Blue for <span className="text-bwf-blue-light">Bob</span> 2026
         </h1>
 
