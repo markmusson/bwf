@@ -405,17 +405,6 @@ export function StadiumCanvas({ onSeatClaimed }: Props) {
 
   return (
     <div className="flex flex-col items-center gap-4">
-      <header className="text-center">
-        <h2 className="font-display text-xl text-white">
-          Claim your virtual seat
-        </h2>
-        <p className="mx-auto mt-1 max-w-md text-sm text-white/85">
-          Click any seat to turn it Blue for Bob. Every seat changes colour when
-          claimed. You&apos;re also welcome to make a donation if your seat has
-          already gone.
-        </p>
-      </header>
-
       <div ref={wrapRef} className="relative w-full">
         <canvas
           ref={canvasRef}

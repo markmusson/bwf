@@ -59,26 +59,30 @@ export function StadiumExperience() {
       <StatsBar />
       <ProgressBar />
 
-      {/* Mission strip — Adam asked we bring the WHY higher on the
-          page so first-time visitors immediately see what their
-          tenner is for. Sits above the seat map, below the stats. */}
+      {/* Combined mission + click instructions — one block above the
+          map, no second header inside the canvas. Saves vertical
+          space and keeps the WHY visible at first paint. */}
       <section
         aria-label="Campaign mission"
-        className="bg-bwf-navy/80 border-bwf-blue-light/20 border-b px-5 py-4"
+        className="bg-bwf-navy/80 border-bwf-blue-light/20 border-b px-5 py-3"
       >
-        <div className="mx-auto flex max-w-3xl flex-col items-center gap-2 text-center">
+        <div className="mx-auto flex max-w-3xl flex-col items-center gap-1 text-center">
           <p className="font-display text-bwf-pale text-[11px] font-semibold tracking-[2px] uppercase">
             Why blue for Bob?
           </p>
           <p className="text-[15px] leading-snug text-white">
-            £10 turns a virtual seat blue and funds prostate cancer research in
-            Bob Willis&apos;s name. Every donation enters you into the prize
-            draw.
+            £10 turns a virtual seat blue and funds prostate cancer
+            research in Bob Willis&apos;s name. Every donation enters
+            you into the prize draw.
+          </p>
+          <p className="mt-0.5 text-[12px] leading-snug text-white/75">
+            Click any seat below to claim it. Hover a claimed seat to
+            read its tribute.
           </p>
         </div>
       </section>
 
-      <section className="bg-bwf-blue px-2 py-6 sm:px-4 sm:py-8">
+      <section className="bg-bwf-blue px-2 pt-3 pb-6 sm:px-4 sm:pt-4 sm:pb-8">
         <div className="mx-auto flex max-w-5xl flex-col gap-5">
           <StadiumCanvas />
           <div className="mx-auto w-full max-w-3xl">
