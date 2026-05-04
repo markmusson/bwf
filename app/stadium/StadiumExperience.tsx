@@ -59,13 +59,34 @@ export function StadiumExperience() {
       <StatsBar />
       <ProgressBar />
 
-      <section className="bg-bwf-blue px-4 py-8">
-        <div className="mx-auto flex max-w-3xl flex-col gap-6">
-          <div className="bg-bwf-deep/40 ring-bwf-blue/30 rounded-2xl p-3 ring-1">
-            <StadiumCanvas />
+      {/* Mission strip — Adam asked we bring the WHY higher on the
+          page so first-time visitors immediately see what their
+          tenner is for. Sits above the seat map, below the stats. */}
+      <section
+        aria-label="Campaign mission"
+        className="bg-bwf-navy/80 border-bwf-blue-light/20 border-b px-5 py-4"
+      >
+        <div className="mx-auto flex max-w-3xl flex-col items-center gap-2 text-center">
+          <p className="font-display text-bwf-pale text-[11px] font-semibold tracking-[2px] uppercase">
+            Why blue for Bob?
+          </p>
+          <p className="text-[15px] leading-snug text-white">
+            £10 turns a virtual seat blue and funds prostate cancer research in
+            Bob Willis&apos;s name. Every donation enters you into the prize
+            draw.
+          </p>
+        </div>
+      </section>
+
+      <section className="bg-bwf-blue px-2 py-6 sm:px-4 sm:py-8">
+        <div className="mx-auto flex max-w-5xl flex-col gap-5">
+          <StadiumCanvas />
+          <div className="mx-auto w-full max-w-3xl">
+            <StandLegend />
           </div>
-          <StandLegend />
-          <SeatStatesKey />
+          <div className="mx-auto w-full max-w-3xl">
+            <SeatStatesKey />
+          </div>
         </div>
       </section>
 

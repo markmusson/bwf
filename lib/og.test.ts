@@ -7,7 +7,7 @@ import {
 } from "./og";
 
 describe("buildOgScene", () => {
-  it("renders the unclaimed-seat scene with the stand's tier price", () => {
+  it("renders the unclaimed-seat scene with the flat £10 minimum", () => {
     const scene = buildOgScene({
       slug: "south-3-12",
       donors: 0,
@@ -17,9 +17,9 @@ describe("buildOgScene", () => {
     expect(scene.standName).toBe("Pavilion (South Stand)");
     expect(scene.seatLabel).toBe("Row 3, Seat 12");
     expect(scene.headline).toBe("This seat is unclaimed");
-    expect(scene.summary).toMatch(/£50 minimum/);
+    expect(scene.summary).toMatch(/£10 minimum/);
     expect(scene.tributeSnippet).toBeNull();
-    expect(scene.tierPrice).toBe("£50");
+    expect(scene.tierPrice).toBe("£10");
   });
 
   it("renders the donor headline for a single-donor seat with a name", () => {

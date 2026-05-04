@@ -24,6 +24,7 @@ vi.mock("@/convex/_generated/api", () => ({
       claim: "api.holds.claim",
       activeSeatIds: "api.holds.activeSeatIds",
     },
+    tributes: { listApproved: "api.tributes.listApproved" },
   },
 }));
 
@@ -91,6 +92,7 @@ function configureMocks(opts?: {
   useQueryMock.mockImplementation((ref: unknown) => {
     if (ref === "api.seats.list") return seats;
     if (ref === "api.holds.activeSeatIds") return held;
+    if (ref === "api.tributes.listApproved") return [];
     return undefined;
   });
   useMutationMock.mockReturnValue(vi.fn());

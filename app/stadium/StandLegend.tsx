@@ -54,16 +54,15 @@ export function StandLegend({ onStandClick }: Props) {
               />
               <span className="relative text-white">{stand.name}</span>
               <span
-                data-testid={`stand-price-${stand.id}`}
-                className="text-bwf-gold relative ml-1 font-bold tracking-[0.5px] uppercase"
-              >
-                {formatPrice(stand.pricePence)}
-              </span>
-              <span
                 data-testid={`stand-count-${stand.id}`}
-                className="relative text-[10px] text-white/75 tabular-nums"
+                className="relative ml-1 text-[10px] text-white/75 tabular-nums"
               >
                 {stat.taken}/{stat.total}
+              </span>
+              {/* Hidden node kept for the tile data-testid surface; all
+                  seats are £10 across the campaign. */}
+              <span data-testid={`stand-price-${stand.id}`} className="sr-only">
+                {formatPrice(stand.pricePence)}
               </span>
             </Tag>
           </li>

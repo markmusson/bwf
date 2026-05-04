@@ -24,7 +24,7 @@ export const STANDS: readonly Stand[] = [
     vEnd: 212,
     innerR: 133,
     rows: 10,
-    pricePence: 5_000,
+    pricePence: 1_000,
   },
   // West Stand — large two-tier west side, between Pavilion and Priory.
   {
@@ -36,7 +36,7 @@ export const STANDS: readonly Stand[] = [
     vEnd: 265,
     innerR: 133,
     rows: 11,
-    pricePence: 2_500,
+    pricePence: 1_000,
   },
   // Priory / Drayton Manor Family Stand — small, between West and Raglan.
   {
@@ -60,7 +60,7 @@ export const STANDS: readonly Stand[] = [
     vEnd: 330,
     innerR: 132,
     rows: 8,
-    pricePence: 2_500,
+    pricePence: 1_000,
   },
   // R.E.S. Wyatt Stand — City End (north). vStart wraps past 360.
   {
@@ -84,7 +84,7 @@ export const STANDS: readonly Stand[] = [
     vEnd: 70,
     innerR: 131,
     rows: 6,
-    pricePence: 2_500,
+    pricePence: 1_000,
   },
   // Eric Hollies Stand — east side behind the River Rea. The biggest,
   // most atmospheric stand at Edgbaston. Wide arc, bumped row count.
@@ -97,6 +97,6 @@ export const STANDS: readonly Stand[] = [
     vEnd: 148,
     innerR: 133,
     rows: 13,
-    pricePence: 2_500,
+    pricePence: 1_000,
   },
 ];

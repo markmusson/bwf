@@ -43,19 +43,15 @@ describe("StandLegend", () => {
     expect(screen.getByTestId("stand-tile-hollies")).toHaveTextContent(/400/);
   });
 
-  it("shows the per-stand price pill (Hollies £25, South £50, Wyatt £10)", () => {
+  it("flat £10 across every stand (price node kept for sr-only readers)", () => {
     useQueryMock.mockReset();
     useQueryMock.mockReturnValue({});
     render(<StandLegend />);
-    expect(screen.getByTestId("stand-price-hollies").textContent).toContain(
-      "£25",
-    );
-    expect(screen.getByTestId("stand-price-south").textContent).toContain(
-      "£50",
-    );
-    expect(screen.getByTestId("stand-price-wyatt").textContent).toContain(
-      "£10",
-    );
+    for (const id of ["hollies", "south", "wyatt", "raglan"]) {
+      expect(screen.getByTestId(`stand-price-${id}`).textContent).toContain(
+        "£10",
+      );
+    }
   });
 
   it("renders the claimed/total count in 'X / Y' format", () => {

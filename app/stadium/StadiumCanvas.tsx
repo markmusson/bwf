@@ -121,31 +121,23 @@ function drawStadium(
   }
   ctx.restore();
 
-  // Circular pitch — 2 concentric rings (outer field + inner ring),
-  // EDGBASTON wordmark dead-centre. Matches the v4 mock.
-  const pitchOuterR = 105;
-  const pitchInnerR = 60;
-  ctx.fillStyle = "#0c4a2a";
+  // Circular pitch — 2 concentric rings. The BWF logo + EDGBASTON
+  // label are overlaid as DOM elements (see the wrap div below) so we
+  // can use the SVG directly without canvas image-loading gymnastics.
+  const pitchOuterR = 110;
+  const pitchInnerR = 64;
+  ctx.fillStyle = "#0d5230";
   ctx.beginPath();
   ctx.arc(CENTER_X, CENTER_Y, pitchOuterR, 0, Math.PI * 2);
   ctx.fill();
-  ctx.strokeStyle = "rgba(255,255,255,0.30)";
-  ctx.lineWidth = 1;
+  ctx.strokeStyle = "rgba(255,255,255,0.32)";
+  ctx.lineWidth = 1.2;
   ctx.stroke();
 
   ctx.beginPath();
   ctx.arc(CENTER_X, CENTER_Y, pitchInnerR, 0, Math.PI * 2);
-  ctx.strokeStyle = "rgba(255,255,255,0.18)";
+  ctx.strokeStyle = "rgba(255,255,255,0.20)";
   ctx.stroke();
-
-  // EDGBASTON wordmark, dead centre.
-  ctx.save();
-  ctx.fillStyle = "rgba(255,255,255,0.92)";
-  ctx.font = "800 14px 'Barlow Condensed', system-ui, sans-serif";
-  ctx.textAlign = "center";
-  ctx.textBaseline = "middle";
-  ctx.fillText("EDGBASTON", CENTER_X, CENTER_Y);
-  ctx.restore();
 
   // Seats
   for (const seat of layout) {
@@ -225,6 +217,7 @@ export function StadiumCanvas({ onSeatClaimed }: Props) {
   const wrapRef = useRef<HTMLDivElement>(null);
   const seatRows = useQuery(api.seats.list);
   const heldIds = useQuery(api.holds.activeSeatIds);
+  const tributeGroups = useQuery(api.tributes.listApproved);
   const claimSeat = useMutation(api.holds.claim);
   const clientHoldId = useClientHoldId();
 
@@ -257,6 +250,21 @@ export function StadiumCanvas({ onSeatClaimed }: Props) {
     }
     return set;
   }, [heldIds, seatRows]);
+
+  // Map of (stand:row:num) → newest approved tribute on that seat.
+  // Used by the hover tooltip so a hovered claimed seat shows its
+  // dedication. Empty for seats with no approved tributes.
+  const leadTributeByKey = useMemo(() => {
+    const map = new Map<string, { displayName: string | null; text: string }>();
+    if (!tributeGroups) return map;
+    for (const group of tributeGroups) {
+      const lead = group.tributes[0];
+      if (!lead) continue;
+      const key = statusKey(group.seat.stand, group.seat.row, group.seat.num);
+      map.set(key, { displayName: lead.displayName, text: lead.text });
+    }
+    return map;
+  }, [tributeGroups]);
 
   const [selected, setSelected] = useState<Seat | null>(null);
   const [hovered, setHovered] = useState<Seat | null>(null);
@@ -375,10 +383,20 @@ export function StadiumCanvas({ onSeatClaimed }: Props) {
     const count = countByKey.get(key) ?? 0;
     if (heldKeys.has(key) && count === 0) return "Held — someone's paying";
     if (count >= 2) return `${count} donors`;
-    if (count === 1) return "Claimed once";
-    const stand = STANDS.find((s) => s.id === hovered.standId);
-    const price = stand ? `£${Math.round(stand.pricePence / 100)}` : "£10";
-    return `From ${price}`;
+    if (count === 1) return "Claimed";
+    return "Tap to claim · £10";
+  })();
+  const tooltipTribute = (() => {
+    if (!hovered) return null;
+    const key = statusKey(hovered.standId, hovered.rowIndex, hovered.colIndex);
+    const lead = leadTributeByKey.get(key);
+    if (!lead) return null;
+    // Truncate hard at 90 chars so the tooltip stays on one viewport line.
+    const text =
+      lead.text.length > 90
+        ? `${lead.text.slice(0, 89).trimEnd()}…`
+        : lead.text;
+    return { name: lead.displayName ?? "Anonymous", text };
   })();
 
   return (
@@ -404,15 +422,57 @@ export function StadiumCanvas({ onSeatClaimed }: Props) {
           role="img"
           className="block h-auto w-full cursor-pointer rounded-2xl"
         />
+        {/* Central visual moment — BWF mark + EDGBASTON wordmark
+            sit on the inner pitch ring. Positioned in canvas-coord
+            percentages so it scales with the canvas wrapper. */}
+        <div
+          aria-hidden
+          className="pointer-events-none absolute flex flex-col items-center"
+          style={{
+            // CENTER_X / STADIUM_WIDTH = 340/680 = 50%
+            // CENTER_Y / STADIUM_HEIGHT = 285/540 ≈ 52.78%
+            left: "50%",
+            top: "52.78%",
+            transform: "translate(-50%, -50%)",
+            // Logo box scales with the canvas. 64 / 680 ≈ 9.4%
+            width: "9.4%",
+          }}
+        >
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src="/brand/bwf-logo-square.svg"
+            alt=""
+            className="block w-full opacity-95"
+            style={{ filter: "drop-shadow(0 1px 2px rgba(0,0,0,0.4))" }}
+          />
+          <span
+            className="font-display mt-1 text-[clamp(8px,1vw,11px)] font-extrabold tracking-[0.2em] text-white/90 uppercase"
+            style={{ textShadow: "0 1px 2px rgba(0,0,0,0.5)" }}
+          >
+            Edgbaston
+          </span>
+        </div>
         {tooltipPos && tooltipText ? (
           <div
             role="tooltip"
             data-testid="seat-tooltip"
-            className="font-display bg-bwf-navy ring-bwf-blue pointer-events-none absolute z-10 -translate-x-1/2 -translate-y-full rounded-md px-2.5 py-1.5 text-[11px] tracking-wider whitespace-nowrap text-white ring-1"
+            className="bg-bwf-navy ring-bwf-blue pointer-events-none absolute z-10 max-w-[260px] -translate-x-1/2 -translate-y-full rounded-lg px-3 py-2 text-[11px] text-white ring-1"
             style={{ left: tooltipPos.left, top: tooltipPos.top }}
           >
-            {tooltipText}
-            <span className="text-bwf-gold ml-2">{tooltipStatus}</span>
+            <div className="font-display flex items-baseline gap-2 tracking-wider whitespace-nowrap uppercase">
+              <span>{tooltipText}</span>
+              <span className="text-bwf-gold">{tooltipStatus}</span>
+            </div>
+            {tooltipTribute ? (
+              <div className="mt-1.5 flex flex-col gap-0.5">
+                <span className="font-display text-bwf-pale text-[9px] tracking-[1.5px] uppercase">
+                  {tooltipTribute.name}
+                </span>
+                <span className="text-[12px] leading-snug whitespace-normal text-white/95">
+                  “{tooltipTribute.text}”
+                </span>
+              </div>
+            ) : null}
           </div>
         ) : null}
       </div>
