@@ -283,12 +283,16 @@ export function StadiumCanvas({ onSeatClaimed }: Props) {
     const draw = () => {
       const ctx = canvas.getContext("2d");
       if (!ctx) return;
-      const w = Math.min(wrap.clientWidth || STADIUM_WIDTH, STADIUM_WIDTH);
+      // Fill the full wrap width — STADIUM_WIDTH is the internal
+      // geometry coordinate space, not a CSS-pixel cap. The DPR
+      // multiplier on canvas.width keeps the canvas pixel-sharp at
+      // any rendered size.
+      const w = wrap.clientWidth || STADIUM_WIDTH;
       const scale = w / STADIUM_WIDTH;
       const dpr = window.devicePixelRatio || 1;
       canvas.width = Math.round(w * dpr);
       canvas.height = Math.round(STADIUM_HEIGHT * scale * dpr);
-      canvas.style.width = `${w}px`;
+      canvas.style.width = "100%";
       canvas.style.height = `${Math.round(STADIUM_HEIGHT * scale)}px`;
       drawStadium(
         ctx,
