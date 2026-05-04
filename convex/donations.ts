@@ -358,14 +358,11 @@ export async function _markPaidForTest(
 
   if (donation.seatId) {
     const seat = await ctx.db.get(donation.seatId);
-    if (seat) {
-      // Multi-claim: bump the donor count and flip status to taken
-      // (status is now a derived "any donors" flag — index-friendly,
-      // not exclusivity).
-      const next = (seat.claimedCount ?? 0) + 1;
+    if (seat && seat.status !== "taken") {
+      // Single-claim: flip the seat once. Subsequent webhook replays
+      // are no-ops thanks to the alreadyPaid early-return above.
       await ctx.db.patch(seat._id, {
         status: "taken" as const,
-        claimedCount: next,
         donationId: donation._id,
       });
     }

@@ -4,9 +4,9 @@ interface State {
   ring?: string;
 }
 
-// Multi-claim model: every seat can be donated to any number of
-// times. Colour reflects donor count, not exclusivity. The "held"
-// amber state still applies during the brief paying-in-flight window.
+// Single-claim model: each seat is available, in flight (held while
+// someone's paying), or taken. The hover tooltip + click-through to
+// /seat/<slug> reveal the tribute on a taken seat.
 const STATES: readonly State[] = [
   {
     label: "Available",
@@ -14,14 +14,14 @@ const STATES: readonly State[] = [
     ring: "rgba(255,255,255,0.35)",
   },
   {
-    label: "Claimed once",
-    fill: "#0085CA",
-    ring: "rgba(255,255,255,0.65)",
+    label: "Held — someone's paying",
+    fill: "#fbbf24",
+    ring: "rgba(0,0,0,0.25)",
   },
   {
-    label: "Claimed multiple times",
-    fill: "#ffffff",
-    ring: "rgba(0,133,202,0.7)",
+    label: "Claimed",
+    fill: "#0085CA",
+    ring: "rgba(255,255,255,0.65)",
   },
 ];
 
@@ -29,7 +29,7 @@ export function SeatStatesKey() {
   return (
     <ul
       aria-label="Seat states key"
-      className="font-display flex flex-wrap items-center justify-center gap-3 text-[12px] font-semibold tracking-[0.5px] text-white/85 uppercase"
+      className="flex flex-wrap items-center justify-center gap-3 text-[11px] font-normal tracking-[1px] text-white/85 uppercase"
     >
       {STATES.map((state) => (
         <li key={state.label} className="flex items-center gap-2">

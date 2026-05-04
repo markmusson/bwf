@@ -79,11 +79,9 @@ export const update = mutation({
   },
 });
 
-// Public — approved tributes for the /wall page. Grouped by seat so a
-// seat with N donors and M tributes shows as ONE card on the wall.
-// Empty-tribute donations don't surface here (they still count toward
-// the seat's claimedCount on the canvas). Bounded at 500 most recent
-// approved tributes; pagination lands when we outgrow that.
+// Public — approved tributes for the /wall page. One row per seat
+// (single-claim). Bounded at 500 most recent approved tributes;
+// pagination lands when we outgrow that.
 export const listApproved = query({
   args: {},
   handler: async (ctx) => {
@@ -127,7 +125,7 @@ export const listApproved = query({
             num: seatRow.num,
             slug: `${seatRow.stand}-${seatRow.row + 1}-${seatRow.num + 1}`,
           },
-          donors: seatRow.claimedCount ?? 0,
+          donors: seatRow.status === "taken" ? 1 : 0,
           raisedPence: 0,
           tributes: [],
           latestAt: 0,

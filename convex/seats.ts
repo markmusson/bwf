@@ -130,7 +130,8 @@ async function buildSeatCard(ctx: QueryCtx, seat: Doc<"seats">) {
     num: seat.num,
     status: seat.status,
     slug: `${seat.stand}-${seat.row + 1}-${seat.num + 1}`,
-    donors: seat.claimedCount ?? 0,
+    // Single-claim: a taken seat has exactly 1 donor; available is 0.
+    donors: seat.status === "taken" ? 1 : 0,
   };
 
   // Pull every paid donation attached to this seat, then attach

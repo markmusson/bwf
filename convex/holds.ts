@@ -24,12 +24,13 @@ export async function _claimSeatForTest(
   args: ClaimArgs,
 ): Promise<Id<"holds">> {
   const seat = await ctx.db.get(args.seatId);
-  if (!seat) {
+  // Single-claim: a taken seat is off the table. The hold mechanism
+  // ALSO serialises in-flight payments so two donors clicking the
+  // same available seat at the same time get exactly one winner —
+  // see the concurrency test in holds.test.ts.
+  if (!seat || seat.status !== "available") {
     throw new ConvexError("seat_unavailable");
   }
-  // Multi-claim: even already-taken seats can be claimed again. The
-  // hold mechanism still serialises payment-in-flight per seat so
-  // two donors don't both hit Stripe for the same checkout slot.
 
   const now = Date.now();
   const existing = await ctx.db

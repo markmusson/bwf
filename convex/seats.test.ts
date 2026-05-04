@@ -47,7 +47,7 @@ describe("seats.getCard", () => {
     expect(result?.tributes).toEqual([]);
   });
 
-  test("seat with two paid donations + two approved tributes returns both, newest first", async () => {
+  test("taken seat with one paid donation + approved tribute returns the donor's card", async () => {
     const t = convexTest(schema, modules);
     const { seatId } = await t.run(async (ctx) => {
       const seatId = await ctx.db.insert("seats", {
@@ -55,12 +55,10 @@ describe("seats.getCard", () => {
         row: 1,
         num: 7,
         status: "taken" as const,
-        claimedCount: 2,
       });
-      const userA = await ctx.db.insert("users", {});
-      const userB = await ctx.db.insert("users", {});
-      const donA = await ctx.db.insert("donations", {
-        userId: userA,
+      const userId = await ctx.db.insert("users", {});
+      const donationId = await ctx.db.insert("donations", {
+        userId,
         seatId,
         amountPence: 2500,
         currency: "GBP" as const,
@@ -71,37 +69,19 @@ describe("seats.getCard", () => {
         stripeSessionId: "cs_a",
         status: "paid" as const,
       });
-      const donB = await ctx.db.insert("donations", {
-        userId: userB,
-        seatId,
-        amountPence: 5000,
-        currency: "GBP" as const,
-        giftAid: false,
-        hideName: false,
-        hideAmount: false,
-        displayName: "John D.",
-        stripeSessionId: "cs_b",
-        status: "paid" as const,
-      });
       await ctx.db.insert("tributes", {
-        donationId: donA,
+        donationId,
         text: "For my dad.",
-        status: "approved" as const,
-      });
-      await ctx.db.insert("tributes", {
-        donationId: donB,
-        text: "Bob was a hero.",
         status: "approved" as const,
       });
       return { seatId };
     });
     const result = await t.query(api.seats.getCard, { seatId });
-    expect(result?.donors).toBe(2);
-    expect(result?.raisedPence).toBe(7500);
-    expect(result?.tributes).toHaveLength(2);
-    // Newest first — donB inserted later so its createdAt > donA.
-    expect(result?.tributes[0]?.text).toBe("Bob was a hero.");
-    expect(result?.tributes[1]?.text).toBe("For my dad.");
+    expect(result?.donors).toBe(1);
+    expect(result?.raisedPence).toBe(2500);
+    expect(result?.tributes).toHaveLength(1);
+    expect(result?.tributes[0]?.text).toBe("For my dad.");
+    expect(result?.tributes[0]?.displayName).toBe("Sarah W.");
   });
 
   test("hideName masks the donor's display name in the tribute entry", async () => {
@@ -112,7 +92,6 @@ describe("seats.getCard", () => {
         row: 0,
         num: 0,
         status: "taken" as const,
-        claimedCount: 1,
       });
       const userId = await ctx.db.insert("users", {});
       const donationId = await ctx.db.insert("donations", {
@@ -146,7 +125,6 @@ describe("seats.getCard", () => {
         row: 0,
         num: 0,
         status: "taken" as const,
-        claimedCount: 1,
       });
       const userId = await ctx.db.insert("users", {});
       const donationId = await ctx.db.insert("donations", {
@@ -180,7 +158,6 @@ describe("seats.getCard", () => {
         row: 0,
         num: 0,
         status: "taken" as const,
-        claimedCount: 1,
       });
       const userId = await ctx.db.insert("users", {});
       const donationId = await ctx.db.insert("donations", {
@@ -216,7 +193,6 @@ describe("seats.getCard", () => {
         row: 0,
         num: 4,
         status: "taken" as const,
-        claimedCount: 1,
       });
       const userId = await ctx.db.insert("users", {});
       const donationId = await ctx.db.insert("donations", {
