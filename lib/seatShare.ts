@@ -36,9 +36,10 @@ export interface SeatShareScene {
 // brass plate is narrow, the sky message sits on one italic line.
 export const SEAT_SHARE_LIMITS = {
   skyMessage: 48,
-  // 16 keeps any name on one line at the chosen plaque font size.
-  // Real names longer than 16 chars truncate with an ellipsis.
-  plaqueName: 16,
+  // 12 fits within the brass plate's ~165px visible width at the
+  // chosen font/letterSpacing. Real names longer than 12 chars
+  // truncate cleanly.
+  plaqueName: 12,
 };
 
 function describeStand(standId: string): string {

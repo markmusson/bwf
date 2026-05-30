@@ -29,15 +29,13 @@ interface Props {
 // Pixel positions on the 1200x630 cropped template, measured against
 // the reference render. Tune via /seat/<slug>/opengraph-image — the
 // layout is brittle to small changes in the source crop.
+// Brass plate boundaries measured against the cropped template:
+// x in [525,690], y in [395,445]. Center (607, 420), 165px x 50px.
 const PLAQUE = {
-  centerX: 595,
-  centerY: 415,
-  // Box width is forgiving so 16-char truncation never overflows the
-  // brass plate visually.
-  width: 340,
-  // Height of the visible brass strip — used to position the donor
-  // name vertically on it.
-  height: 56,
+  centerX: 607,
+  centerY: 420,
+  width: 180,
+  height: 52,
 };
 const SKY = {
   titleY: 36,
@@ -155,11 +153,11 @@ export default async function Image({ params }: Props) {
           {scene.skyMessage}
         </div>
 
-        {/* Brass plaque: donor name in dark caps, vertically centred on
-            the photo's existing brass rectangle. We sit ON TOP — no
-            plate background of our own. Box uses flex centering so a
-            single-line name lands on the brass strip's vertical midline
-            regardless of font metrics. */}
+        {/* Brass plaque: donor name centred on the photo's brass
+            rectangle. The actual brass colour in the photo is dark
+            olive (~rgb(122,83,18)) — dark text reads poorly. White
+            with a soft navy shadow gives the highest legibility on
+            this specific plate without needing a re-edited template. */}
         <div
           style={{
             position: "absolute",
@@ -170,10 +168,11 @@ export default async function Image({ params }: Props) {
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
-            fontSize: 30,
+            fontSize: 22,
             fontWeight: 900,
-            letterSpacing: 4,
-            color: "#1A2A3A",
+            letterSpacing: 1,
+            color: "#FFFFFF",
+            textShadow: "0 1px 2px rgba(15,30,55,0.85)",
             textTransform: "uppercase",
           }}
         >
