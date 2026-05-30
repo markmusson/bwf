@@ -3,55 +3,83 @@
 // the metadata.openGraph.images entry on the page.
 //
 // We hit the public Convex deployment server-side (no auth) via
-// ConvexHttpClient and feed the result into buildOgScene for the
-// strings, then render with @vercel/og's ImageResponse.
+// ConvexHttpClient, feed the result into buildSeatShareScene for the
+// strings, then composite them over the stadium template via
+// @vercel/og's ImageResponse.
 
+import { readFile } from "node:fs/promises";
+import path from "node:path";
 import { ImageResponse } from "next/og";
 import { ConvexHttpClient } from "convex/browser";
 import { api } from "@/convex/_generated/api";
-import { buildOgScene } from "@/lib/og";
+import { buildSeatShareScene } from "@/lib/seatShare";
 
-export const runtime = "edge";
+// nodejs (not edge) runtime so we can read the template image directly
+// from public/. Cold-start is slightly slower but OG image responses
+// are crawler-fetched and cached, so latency isn't user-facing.
+export const runtime = "nodejs";
 export const alt = "A seat at Edgbaston turned blue for Bob.";
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
-
-const BWF_BLUE = "#0085CA";
-const BWF_NAVY = "#003B60";
-const BWF_DEEP = "#001E3C";
-const BWF_GOLD = "#FFD700";
-const PALE = "#33A8E0";
 
 interface Props {
   params: Promise<{ slug: string }>;
 }
 
+// Pixel positions on the 1200x630 cropped template, eyeballed from the
+// reference render in image tempates/image0-filled.png. Tune via the
+// /seat/<slug>/opengraph-image preview in dev — the layout is brittle
+// to small changes in the source crop.
+const PLAQUE = {
+  centerX: 595,
+  centerY: 360,
+  // Box width is forgiving so 22-char truncation never overflows the
+  // brass plate visually.
+  width: 380,
+};
+const SKY = {
+  titleY: 36,
+  messageY: 96,
+};
+const FOOTER_Y = 560;
+
 export default async function Image({ params }: Props) {
   const { slug } = await params;
-  const url = process.env.NEXT_PUBLIC_CONVEX_URL;
+  const convexUrl = process.env.NEXT_PUBLIC_CONVEX_URL;
+  const siteUrl = process.env.SITE_URL ?? "https://blue.bobwillisfund.org";
+
+  // Read template once, inline as data URL — Vercel's edge function
+  // pricing rewards small responses but the JPEG is ~265KB and ends up
+  // base64-encoded into the PNG anyway.
+  const templateBuffer = await readFile(
+    path.join(process.cwd(), "public/share/stadium-template.jpg"),
+  );
+  const templateDataUrl = `data:image/jpeg;base64,${templateBuffer.toString("base64")}`;
 
   // Default scene used for unclaimed seats AND any backend hiccup —
   // a share-card preview should never error the client.
-  let scene = buildOgScene({ slug, donors: 0, raisedPence: 0, lead: null });
+  let scene = buildSeatShareScene({
+    slug,
+    donors: 0,
+    raisedPence: 0,
+    lead: null,
+    siteUrl,
+  });
 
-  if (url) {
+  if (convexUrl) {
     try {
-      const client = new ConvexHttpClient(url);
+      const client = new ConvexHttpClient(convexUrl);
       const card = await client.query(api.seats.getCardBySlug, { slug });
       if (card) {
         const lead = card.tributes[0] ?? null;
-        scene = buildOgScene({
+        scene = buildSeatShareScene({
           slug,
           donors: card.donors,
           raisedPence: card.raisedPence,
           lead: lead
-            ? {
-                displayName: lead.displayName,
-                amountPence: lead.amountPence,
-                giftAid: lead.giftAid,
-                text: lead.text,
-              }
+            ? { displayName: lead.displayName, text: lead.text }
             : null,
+          siteUrl,
         });
       }
     } catch {
@@ -61,151 +89,135 @@ export default async function Image({ params }: Props) {
   }
 
   return new ImageResponse(
-    <div
-      style={{
-        width: "100%",
-        height: "100%",
-        display: "flex",
-        flexDirection: "column",
-        background: `linear-gradient(135deg, ${BWF_BLUE} 0%, ${BWF_NAVY} 60%, ${BWF_DEEP} 100%)`,
-        color: "white",
-        fontFamily: "sans-serif",
-        padding: "64px",
-        position: "relative",
-      }}
-    >
-      {/* Brand strip: BWF wordmark + campaign title */}
+    (
       <div
         style={{
+          width: "100%",
+          height: "100%",
           display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          marginBottom: 48,
+          position: "relative",
+          color: "white",
+          fontFamily: "sans-serif",
         }}
       >
-        <div style={{ display: "flex", flexDirection: "column" }}>
-          <span
-            style={{
-              fontSize: 16,
-              letterSpacing: 4,
-              textTransform: "uppercase",
-              color: "rgba(255,255,255,0.7)",
-            }}
-          >
-            The Bob Willis Fund
-          </span>
-          <span
-            style={{
-              fontSize: 38,
-              fontWeight: 900,
-              letterSpacing: 2,
-              textTransform: "uppercase",
-              marginTop: 4,
-            }}
-          >
-            Blue for <span style={{ color: PALE }}>Bob</span> 2026
-          </span>
+        {/* Stadium photo template — the entire background. */}
+        <img
+          src={templateDataUrl}
+          width={size.width}
+          height={size.height}
+          alt=""
+          style={{
+            position: "absolute",
+            inset: 0,
+            width: "100%",
+            height: "100%",
+            objectFit: "cover",
+          }}
+        />
+
+        {/* Sky: title + script message. White text reads cleanly over
+            the sky band at the top of the photo. */}
+        <div
+          style={{
+            position: "absolute",
+            top: SKY.titleY,
+            left: 0,
+            right: 0,
+            display: "flex",
+            justifyContent: "center",
+            fontSize: 44,
+            fontWeight: 900,
+            letterSpacing: 3,
+            textTransform: "uppercase",
+            color: "#FFFFFF",
+            textShadow: "0 2px 8px rgba(0,30,60,0.45)",
+          }}
+        >
+          {scene.skyTitle}
         </div>
         <div
           style={{
+            position: "absolute",
+            top: SKY.messageY,
+            left: 0,
+            right: 0,
             display: "flex",
-            alignItems: "center",
-            gap: 12,
-            padding: "10px 20px",
-            borderRadius: 999,
-            background: BWF_GOLD,
-            color: BWF_NAVY,
-            fontSize: 22,
-            fontWeight: 800,
-            letterSpacing: 2,
+            justifyContent: "center",
+            fontSize: 30,
+            fontStyle: "italic",
+            color: "#E8F4FB",
+            textShadow: "0 2px 6px rgba(0,30,60,0.55)",
+            maxWidth: size.width,
+          }}
+        >
+          {scene.skyMessage}
+        </div>
+
+        {/* Brass plaque: donor name in dark serif-ish caps. We don't
+            render a plate background — we sit ON TOP of the photo's
+            existing brass rectangle. */}
+        <div
+          style={{
+            position: "absolute",
+            top: PLAQUE.centerY - 24,
+            left: PLAQUE.centerX - PLAQUE.width / 2,
+            width: PLAQUE.width,
+            display: "flex",
+            justifyContent: "center",
+            fontSize: 36,
+            fontWeight: 900,
+            letterSpacing: 3,
+            color: "#1A2A3A",
             textTransform: "uppercase",
           }}
         >
-          {scene.tierPrice}
+          {scene.plaqueName}
         </div>
-      </div>
 
-      {/* Seat eyebrow */}
-      <div
-        style={{
-          display: "flex",
-          fontSize: 22,
-          letterSpacing: 4,
-          textTransform: "uppercase",
-          color: PALE,
-          marginBottom: 8,
-        }}
-      >
-        {scene.standName} · {scene.seatLabel}
-      </div>
-
-      {/* Headline */}
-      <div
-        style={{
-          display: "flex",
-          fontSize: 80,
-          fontWeight: 900,
-          letterSpacing: 1,
-          lineHeight: 1.05,
-          textTransform: "uppercase",
-          marginBottom: 24,
-          maxWidth: 980,
-        }}
-      >
-        {scene.headline}
-      </div>
-
-      {/* Summary line */}
-      <div
-        style={{
-          display: "flex",
-          fontSize: 30,
-          fontWeight: 600,
-          color: "rgba(255,255,255,0.85)",
-          marginBottom: scene.tributeSnippet ? 28 : 0,
-        }}
-      >
-        {scene.summary}
-      </div>
-
-      {/* Tribute snippet (optional) */}
-      {scene.tributeSnippet ? (
+        {/* Plaque subtitle (white, under the plaque). */}
         <div
           style={{
+            position: "absolute",
+            top: PLAQUE.centerY + 50,
+            left: 0,
+            right: 0,
             display: "flex",
-            fontSize: 28,
-            fontStyle: "italic",
-            color: "rgba(255,255,255,0.92)",
-            padding: "22px 28px",
-            borderRadius: 16,
-            background: "rgba(0,30,60,0.55)",
-            border: `1px solid rgba(0,133,202,0.35)`,
-            maxWidth: 1000,
+            justifyContent: "center",
+            fontSize: 22,
+            fontWeight: 700,
+            letterSpacing: 4,
+            textTransform: "uppercase",
+            color: "#FFFFFF",
+            textShadow: "0 2px 6px rgba(0,30,60,0.55)",
           }}
         >
-          “{scene.tributeSnippet}”
+          {scene.plaqueSubtitle}
         </div>
-      ) : null}
 
-      {/* Footer */}
-      <div
-        style={{
-          display: "flex",
-          position: "absolute",
-          bottom: 32,
-          left: 64,
-          right: 64,
-          justifyContent: "space-between",
-          color: "rgba(255,255,255,0.55)",
-          fontSize: 18,
-          letterSpacing: 1.5,
-          textTransform: "uppercase",
-        }}
-      >
-        <span>bobwillisfund.org</span>
-        <span>{slug}</span>
+        {/* Footer: CTA + host. Positioned over the lower seat row so
+            it sits in the photo's darker quiet band. */}
+        <div
+          style={{
+            position: "absolute",
+            top: FOOTER_Y,
+            left: 64,
+            right: 64,
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            color: "#FFFFFF",
+            fontSize: 22,
+            letterSpacing: 4,
+            textTransform: "uppercase",
+            fontWeight: 700,
+            textShadow: "0 2px 6px rgba(0,30,60,0.55)",
+          }}
+        >
+          <span>{scene.cta}</span>
+          <span style={{ color: "#FFD700" }}>{scene.ctaHost}</span>
+        </div>
       </div>
-    </div>,
+    ),
     { ...size },
   );
 }
