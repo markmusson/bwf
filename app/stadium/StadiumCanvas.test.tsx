@@ -103,15 +103,15 @@ function configureMocks(opts?: {
 }
 
 describe("StadiumCanvas", () => {
-  it("renders the canvas region with role=img and the prompt copy", () => {
+  it("renders the canvas region with role=img", () => {
     configureMocks();
     render(<StadiumCanvas />);
     expect(
       screen.getByRole("img", { name: /Edgbaston seat map/i }),
     ).toBeInTheDocument();
-    expect(
-      screen.getByRole("heading", { name: /Claim your virtual seat/i }),
-    ).toBeInTheDocument();
+    // The "Claim your virtual seat" prompt was merged into the
+    // StadiumExperience mission strip — see BrandHeader/StadiumExperience
+    // tests for that copy. The canvas itself has no header anymore.
   });
 
   it("subscribes to api.seats.list and api.holds.activeSeatIds", () => {

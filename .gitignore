@@ -49,8 +49,10 @@ Thumbs.db
 *.tsbuildinfo
 next-env.d.ts
 
-# Convex
-convex/_generated/
+# Convex — kept tracked so Vercel CI doesn't depend on `convex deploy`
+# regenerating these files. Regen locally with `npx convex dev` or
+# `npx convex codegen` and commit alongside the convex/ change.
+# convex/_generated/
 
 # Local Claude Code session artifacts
 .claude/
