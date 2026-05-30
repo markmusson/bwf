@@ -36,9 +36,9 @@ export interface SeatShareScene {
 // brass plate is narrow, the sky message sits on one italic line.
 export const SEAT_SHARE_LIMITS = {
   skyMessage: 48,
-  // 22 = "AN ANONYMOUS SUPPORTER". Longer real names still get
-  // truncated; we'll tune visually after the render lands.
-  plaqueName: 22,
+  // 16 keeps any name on one line at the chosen plaque font size.
+  // Real names longer than 16 chars truncate with an ellipsis.
+  plaqueName: 16,
 };
 
 function describeStand(standId: string): string {
@@ -100,7 +100,7 @@ export function buildSeatShareScene(
   const rawName =
     lead && lead.displayName !== null && lead.displayName.trim().length > 0
       ? lead.displayName.trim().toUpperCase()
-      : "AN ANONYMOUS SUPPORTER";
+      : "ANONYMOUS";
   const plaqueName = truncate(rawName, SEAT_SHARE_LIMITS.plaqueName);
 
   const rawMessage =

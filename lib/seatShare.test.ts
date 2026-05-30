@@ -56,9 +56,9 @@ describe("buildSeatShareScene", () => {
       expect(scene.skyTitle).toBe("THIS SEAT IS DEDICATED TO");
     });
 
-    it("falls back to AN ANONYMOUS SUPPORTER on the plaque", () => {
+    it("falls back to ANONYMOUS on the plaque (short so it fits one line)", () => {
       const scene = buildSeatShareScene(input);
-      expect(scene.plaqueName).toBe("AN ANONYMOUS SUPPORTER");
+      expect(scene.plaqueName).toBe("ANONYMOUS");
     });
 
     it("uses the default sky message", () => {
@@ -75,9 +75,9 @@ describe("buildSeatShareScene", () => {
       lead: { displayName: null, text: "for my dad" },
     };
 
-    it("uses the AN ANONYMOUS SUPPORTER label on the plaque", () => {
+    it("uses the ANONYMOUS label on the plaque", () => {
       const scene = buildSeatShareScene(input);
-      expect(scene.plaqueName).toBe("AN ANONYMOUS SUPPORTER");
+      expect(scene.plaqueName).toBe("ANONYMOUS");
     });
 
     it("still shows the tribute body when the name is hidden", () => {

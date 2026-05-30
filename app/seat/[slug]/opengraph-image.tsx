@@ -26,16 +26,18 @@ interface Props {
   params: Promise<{ slug: string }>;
 }
 
-// Pixel positions on the 1200x630 cropped template, eyeballed from the
-// reference render in image tempates/image0-filled.png. Tune via the
-// /seat/<slug>/opengraph-image preview in dev — the layout is brittle
-// to small changes in the source crop.
+// Pixel positions on the 1200x630 cropped template, measured against
+// the reference render. Tune via /seat/<slug>/opengraph-image — the
+// layout is brittle to small changes in the source crop.
 const PLAQUE = {
   centerX: 595,
-  centerY: 360,
-  // Box width is forgiving so 22-char truncation never overflows the
+  centerY: 415,
+  // Box width is forgiving so 16-char truncation never overflows the
   // brass plate visually.
-  width: 380,
+  width: 340,
+  // Height of the visible brass strip — used to position the donor
+  // name vertically on it.
+  height: 56,
 };
 const SKY = {
   titleY: 36,
@@ -153,20 +155,24 @@ export default async function Image({ params }: Props) {
           {scene.skyMessage}
         </div>
 
-        {/* Brass plaque: donor name in dark serif-ish caps. We don't
-            render a plate background — we sit ON TOP of the photo's
-            existing brass rectangle. */}
+        {/* Brass plaque: donor name in dark caps, vertically centred on
+            the photo's existing brass rectangle. We sit ON TOP — no
+            plate background of our own. Box uses flex centering so a
+            single-line name lands on the brass strip's vertical midline
+            regardless of font metrics. */}
         <div
           style={{
             position: "absolute",
-            top: PLAQUE.centerY - 24,
+            top: PLAQUE.centerY - PLAQUE.height / 2,
             left: PLAQUE.centerX - PLAQUE.width / 2,
             width: PLAQUE.width,
+            height: PLAQUE.height,
             display: "flex",
+            alignItems: "center",
             justifyContent: "center",
-            fontSize: 36,
+            fontSize: 30,
             fontWeight: 900,
-            letterSpacing: 3,
+            letterSpacing: 4,
             color: "#1A2A3A",
             textTransform: "uppercase",
           }}
@@ -178,7 +184,7 @@ export default async function Image({ params }: Props) {
         <div
           style={{
             position: "absolute",
-            top: PLAQUE.centerY + 50,
+            top: PLAQUE.centerY + PLAQUE.height / 2 + 14,
             left: 0,
             right: 0,
             display: "flex",
