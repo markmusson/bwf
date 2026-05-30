@@ -51,10 +51,25 @@ export const sendReceipt = internalAction({
     if (!apiKey) throw new ConvexError("resend_not_configured");
     const from = process.env.EMAIL_FROM ?? "onboarding@resend.dev";
 
-    const { subject, html, text } = formatReceipt(donation, {
-      email: donor.email,
-      name: donor.name ?? donation.displayName ?? undefined,
-    });
+    // Receipt URLs derive from SITE_URL so they track whatever domain
+    // we're on (bwf-seven.vercel.app pre-cutover, blue.bobwillisfund.org
+    // after). Falls back to the lib default if SITE_URL is missing —
+    // shouldn't happen on prod but keeps tests and dev sane.
+    const siteUrl = process.env.SITE_URL;
+    const receiptOptions = siteUrl
+      ? {
+          fundraisingPageUrl: `${siteUrl}/stadium`,
+          managePageUrl: `${siteUrl}/manage`,
+        }
+      : {};
+    const { subject, html, text } = formatReceipt(
+      donation,
+      {
+        email: donor.email,
+        name: donor.name ?? donation.displayName ?? undefined,
+      },
+      receiptOptions,
+    );
 
     const resend = new Resend(apiKey);
     const result = await resend.emails.send({
