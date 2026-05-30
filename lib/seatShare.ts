@@ -76,7 +76,7 @@ export function buildSeatShareScene(
   const ctaHost = ctaHostFromSiteUrl(input.siteUrl);
   const cta = "DEDICATE A SEAT TODAY";
 
-  const isClaimed = input.donors > 0 && input.lead !== null;
+  const isClaimed = input.donors > 0;
 
   if (!isClaimed) {
     return {
@@ -92,15 +92,19 @@ export function buildSeatShareScene(
     };
   }
 
-  const lead = input.lead!;
+  // Claimed seat. The lead tribute is optional — donors can pay
+  // without writing a tribute, or theirs may be pending moderation.
+  // In both cases the seat is still claimed; we just fall back to a
+  // gentle anonymous treatment.
+  const lead = input.lead;
   const rawName =
-    lead.displayName !== null && lead.displayName.trim().length > 0
+    lead && lead.displayName !== null && lead.displayName.trim().length > 0
       ? lead.displayName.trim().toUpperCase()
       : "AN ANONYMOUS SUPPORTER";
   const plaqueName = truncate(rawName, SEAT_SHARE_LIMITS.plaqueName);
 
   const rawMessage =
-    lead.text && lead.text.trim().length > 0
+    lead && lead.text && lead.text.trim().length > 0
       ? lead.text.trim()
       : "a tribute to a life well lived";
   const skyMessage = truncate(rawMessage, SEAT_SHARE_LIMITS.skyMessage);

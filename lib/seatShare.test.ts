@@ -39,6 +39,34 @@ describe("buildSeatShareScene", () => {
     });
   });
 
+  describe("claimed but no approved tribute", () => {
+    // Happens when a donor pays but hasn't (yet) written a tribute,
+    // or their tribute is pending moderation. The seat is still
+    // claimed and should NOT show as available.
+    const input = {
+      ...baseInput,
+      donors: 1,
+      raisedPence: 1000,
+      lead: null,
+    };
+
+    it("marks the seat as claimed even without a tribute", () => {
+      const scene = buildSeatShareScene(input);
+      expect(scene.isClaimed).toBe(true);
+      expect(scene.skyTitle).toBe("THIS SEAT IS DEDICATED TO");
+    });
+
+    it("falls back to AN ANONYMOUS SUPPORTER on the plaque", () => {
+      const scene = buildSeatShareScene(input);
+      expect(scene.plaqueName).toBe("AN ANONYMOUS SUPPORTER");
+    });
+
+    it("uses the default sky message", () => {
+      const scene = buildSeatShareScene(input);
+      expect(scene.skyMessage).toBe("a tribute to a life well lived");
+    });
+  });
+
   describe("anonymous donor", () => {
     const input = {
       ...baseInput,
