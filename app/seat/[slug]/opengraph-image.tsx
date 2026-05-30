@@ -34,8 +34,8 @@ interface Props {
 const PLAQUE = {
   centerX: 607,
   centerY: 420,
-  width: 180,
-  height: 52,
+  width: 168,
+  height: 50,
 };
 const SKY = {
   titleY: 36,
@@ -153,31 +153,37 @@ export default async function Image({ params }: Props) {
           {scene.skyMessage}
         </div>
 
-        {/* Brass plaque: donor name centred on the photo's brass
-            rectangle. The actual brass colour in the photo is dark
-            olive (~rgb(122,83,18)) — dark text reads poorly. White
-            with a soft navy shadow gives the highest legibility on
-            this specific plate without needing a re-edited template. */}
-        <div
-          style={{
-            position: "absolute",
-            top: PLAQUE.centerY - PLAQUE.height / 2,
-            left: PLAQUE.centerX - PLAQUE.width / 2,
-            width: PLAQUE.width,
-            height: PLAQUE.height,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            fontSize: 22,
-            fontWeight: 900,
-            letterSpacing: 1,
-            color: "#FFFFFF",
-            textShadow: "0 1px 2px rgba(15,30,55,0.85)",
-            textTransform: "uppercase",
-          }}
-        >
-          {scene.plaqueName}
-        </div>
+        {/* Brass plaque: a navy panel sits over the existing brass
+            rectangle so the text contrast survives downsampling to
+            social-share thumbnail sizes. Bare text on brass renders
+            white-on-grey when Satori output is scaled below 1200px.
+            Gold border picks up the brass colour for a finished look.
+            Only drawn when the seat is claimed — an unclaimed seat
+            keeps the photo's empty brass plate on view. */}
+        {scene.plaqueName ? (
+          <div
+            style={{
+              position: "absolute",
+              top: PLAQUE.centerY - PLAQUE.height / 2 + 4,
+              left: PLAQUE.centerX - PLAQUE.width / 2,
+              width: PLAQUE.width,
+              height: PLAQUE.height - 8,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              background: "rgba(8,20,40,0.92)",
+              borderRadius: 6,
+              border: "1px solid rgba(255,210,140,0.55)",
+              fontSize: 20,
+              fontWeight: 900,
+              letterSpacing: 0.5,
+              color: "#FFE6A8",
+              textTransform: "uppercase",
+            }}
+          >
+            {scene.plaqueName}
+          </div>
+        ) : null}
 
         {/* Plaque subtitle (white, under the plaque). */}
         <div
