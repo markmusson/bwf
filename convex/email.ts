@@ -1,6 +1,7 @@
 import { ConvexError, v } from "convex/values";
 import { Resend } from "resend";
 import { formatReceipt } from "../lib/email/receipt";
+import { formatSeatSlug } from "../lib/seatSlug";
 import { internal } from "./_generated/api";
 import { internalAction, internalQuery } from "./_generated/server";
 
@@ -56,10 +57,25 @@ export const sendReceipt = internalAction({
     // after). Falls back to the lib default if SITE_URL is missing —
     // shouldn't happen on prod but keeps tests and dev sane.
     const siteUrl = process.env.SITE_URL;
+    let shareImageUrl: string | undefined;
+    if (siteUrl && donation.seatId) {
+      const seat = await ctx.runQuery(internal.seats.getByIdInternal, {
+        seatId: donation.seatId,
+      });
+      if (seat) {
+        const slug = formatSeatSlug({
+          stand: seat.stand,
+          row: seat.row,
+          num: seat.num,
+        });
+        shareImageUrl = `${siteUrl}/seat/${slug}/opengraph-image`;
+      }
+    }
     const receiptOptions = siteUrl
       ? {
           fundraisingPageUrl: `${siteUrl}/stadium`,
           managePageUrl: `${siteUrl}/manage`,
+          ...(shareImageUrl ? { shareImageUrl } : {}),
         }
       : {};
     const { subject, html, text } = formatReceipt(

@@ -1,9 +1,24 @@
 import { v } from "convex/values";
-import { internalMutation, query, type QueryCtx } from "./_generated/server";
+import {
+  internalMutation,
+  internalQuery,
+  query,
+  type QueryCtx,
+} from "./_generated/server";
 import type { Doc } from "./_generated/dataModel";
 import { buildAllSeats } from "../lib/geometry";
 import { parseSeatSlug } from "../lib/seatSlug";
 import { STANDS } from "../lib/stands";
+
+// Internal — fetch a seat's coord by id. Used by the receipt email
+// action to derive the share-image slug without re-loading the whole
+// stadium.
+export const getByIdInternal = internalQuery({
+  args: { seatId: v.id("seats") },
+  handler: async (ctx, { seatId }) => {
+    return await ctx.db.get(seatId);
+  },
+});
 
 // Public read for the stadium canvas. Convex keeps this reactive — no
 // polling needed. Bounded by the count of seeded seats (~1280) plus

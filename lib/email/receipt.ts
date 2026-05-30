@@ -19,6 +19,10 @@ export interface ReceiptOptions {
   fundraisingPageUrl: string;
   managePageUrl: string;
   prizePostalAddress: string;
+  // Optional URL to the per-seat photo-realistic share image (the
+  // /seat/<slug>/opengraph-image route). When provided, embedded at
+  // the top of the email so the donor sees their dedicated seat first.
+  shareImageUrl?: string;
 }
 
 export interface ReceiptOutput {
@@ -74,6 +78,10 @@ export function formatReceipt(
 
   const subject = `Thank you for supporting the Bob Willis Fund`;
 
+  const shareImageBlock = opts.shareImageUrl
+    ? `<img src="${escapeHtml(opts.shareImageUrl)}" alt="Your dedicated seat at Edgbaston" width="560" style="display:block;width:100%;max-width:560px;height:auto;border-radius:12px;margin:0 0 16px">`
+    : "";
+
   const html = `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -85,6 +93,7 @@ export function formatReceipt(
     <tr><td align="center">
       <table width="100%" cellpadding="0" cellspacing="0" border="0" style="max-width:560px;background:#003B60;border-radius:12px;padding:28px 24px">
         <tr><td>
+          ${shareImageBlock}
           <h1 style="margin:0 0 4px;font-family:Arial, sans-serif;font-size:24px;color:#ffffff">Seat is blue.</h1>
           <p style="margin:0 0 18px;font-size:14px;color:#33a8e0">Blue for Bob 2026 · Edgbaston</p>
           <p style="margin:0 0 14px;font-size:15px;line-height:1.55">${greeting}</p>

@@ -74,4 +74,43 @@ describe("formatReceipt", () => {
     expect(out.html).toContain("Stafford House");
     expect(out.text).toContain("Dorchester");
   });
+
+  describe("share image embed", () => {
+    it("renders the share image at the top when shareImageUrl is provided", () => {
+      const out = formatReceipt(
+        BASE_DONATION,
+        { email: "donor@example.com" },
+        {
+          shareImageUrl:
+            "https://blue.bobwillisfund.org/seat/raglan-1-4/opengraph-image",
+        },
+      );
+      expect(out.html).toContain(
+        'src="https://blue.bobwillisfund.org/seat/raglan-1-4/opengraph-image"',
+      );
+      // Image should sit above the receipt body so the dedication is
+      // the first thing the donor sees.
+      expect(out.html.indexOf("<img")).toBeLessThan(
+        out.html.indexOf("Seat is blue."),
+      );
+    });
+
+    it("omits the image when shareImageUrl is not provided", () => {
+      const out = formatReceipt(BASE_DONATION, { email: "donor@example.com" });
+      expect(out.html).not.toContain("<img");
+    });
+
+    it("escapes the share image URL", () => {
+      const out = formatReceipt(
+        BASE_DONATION,
+        { email: "donor@example.com" },
+        {
+          shareImageUrl:
+            'https://evil.example.com/x"><script>alert(1)</script>',
+        },
+      );
+      expect(out.html).not.toContain("<script>alert");
+      expect(out.html).toContain("&quot;");
+    });
+  });
 });
