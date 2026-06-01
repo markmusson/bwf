@@ -162,6 +162,47 @@ export default async function Image({ params }: Props) {
           </div>
         </div>
 
+        {/* Chair overlay: the source photo has "Bob" baked onto the
+            chair as the campaign mark. Adam asked if we could swap it
+            for the dedication name (e.g. "Dad", "Mum", a first name)
+            so the card feels personal. We sit a rounded chair-blue
+            patch over the original text and draw the hierarchy name on
+            top — falls back to BOB for unclaimed seats so the chair
+            never reads blank. */}
+        <div
+          style={{
+            position: "absolute",
+            top: 322,
+            left: 430,
+            width: 340,
+            height: 158,
+            background:
+              "linear-gradient(180deg, #4F87C0 0%, #2E6CA8 55%, #1E5290 100%)",
+            borderRadius: 28,
+            boxShadow:
+              "inset 0 6px 18px rgba(255,255,255,0.18), inset 0 -10px 24px rgba(0,30,60,0.45)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+          }}
+        >
+          <div
+            style={{
+              display: "flex",
+              fontSize: (scene.plaqueName || "BOB").length > 8 ? 60 : 84,
+              fontWeight: 900,
+              color: "#FFFFFF",
+              letterSpacing: 1,
+              textShadow:
+                "0 3px 10px rgba(0,30,60,0.55), 0 1px 0 rgba(0,0,0,0.4)",
+              maxWidth: 320,
+              textAlign: "center",
+            }}
+          >
+            {scene.plaqueName || "BOB"}
+          </div>
+        </div>
+
         {/* Footer — a darker base under the chair so the CTA reads on
             top of the photo's busiest area. */}
         <div
