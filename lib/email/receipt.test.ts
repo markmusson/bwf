@@ -69,10 +69,14 @@ describe("formatReceipt", () => {
     expect(out.text).toContain("1185346");
   });
 
-  it("includes the postal entry address from 06-locked-from-adam.md", () => {
+  it("does NOT mention the prize draw until the prize is confirmed", () => {
+    // Adam asked (1 Jun) to remove prize-draw wording from the receipt
+    // until the prize element is locked. Page itself stays live; copy
+    // is hidden. Re-enable by reinstating the prize-draw paragraph in
+    // formatReceipt + this assertion.
     const out = formatReceipt(BASE_DONATION, { email: "donor@example.com" });
-    expect(out.html).toContain("Stafford House");
-    expect(out.text).toContain("Dorchester");
+    expect(out.html).not.toMatch(/prize draw/i);
+    expect(out.text).not.toMatch(/prize draw/i);
   });
 
   describe("share image embed", () => {
@@ -91,7 +95,7 @@ describe("formatReceipt", () => {
       // Image should sit above the receipt body so the dedication is
       // the first thing the donor sees.
       expect(out.html.indexOf("<img")).toBeLessThan(
-        out.html.indexOf("Seat is blue."),
+        out.html.indexOf("Thank you for taking your Blue Seat"),
       );
     });
 

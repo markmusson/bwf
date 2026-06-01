@@ -62,9 +62,11 @@ describe("ThanksView", () => {
     });
     render(<ThanksView />);
     expect(
-      screen.getByRole("heading", { name: /Seat is blue!/i }),
+      screen.getByRole("heading", { name: /Thank you for taking your Blue Seat/i }),
     ).toBeInTheDocument();
-    expect(screen.getByText(/Bob would be proud/i)).toBeInTheDocument();
+    expect(
+      screen.getByText(/Your Blue Seat has been secured/i),
+    ).toBeInTheDocument();
     expect(screen.getByText(/£25/)).toBeInTheDocument();
     expect(screen.getByText(/Gift Aid/i)).toBeInTheDocument();
     // Replaced single "Share this seat" link with platform share row
@@ -107,7 +109,7 @@ describe("ThanksView", () => {
     });
     render(<ThanksView />);
     expect(
-      screen.getByRole("heading", { name: /Seat is blue!/i }),
+      screen.getByRole("heading", { name: /Thank you for taking your Blue Seat/i }),
     ).toBeInTheDocument();
     expect(screen.getByText(/Anonymous/i)).toBeInTheDocument();
   });

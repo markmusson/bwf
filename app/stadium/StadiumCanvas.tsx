@@ -494,16 +494,16 @@ export function StadiumCanvas({ onSeatClaimed }: Props) {
             <p className="text-sm" data-testid="selected-seat-readout">
               Selected: <strong>{describeSeat(selected)}</strong>
             </p>
-            <p className="font-display text-bwf-pale text-[11px] tracking-[2px] uppercase">
-              Tap below to claim your seat
+            <p className="font-display text-bwf-gold text-[12px] font-bold tracking-[2px] uppercase">
+              Tap below to claim this seat
             </p>
             <button
               type="button"
               onClick={takeSeat}
               disabled={submitting || !clientHoldId}
-              className="font-display bg-bwf-blue hover:bg-bwf-blue-light w-full rounded-full px-6 py-3.5 text-base font-semibold tracking-wider text-white transition-colors disabled:opacity-50 sm:w-auto sm:self-start sm:py-2.5 sm:text-sm sm:font-normal"
+              className="font-display bg-bwf-gold ring-bwf-gold/50 hover:bg-bwf-gold/90 w-full rounded-full px-6 py-4 text-base font-black tracking-[1.5px] text-bwf-navy uppercase shadow-lg ring-2 transition-colors disabled:opacity-50 sm:py-3.5"
             >
-              {submitting ? "Taking your seat…" : "Take this seat"}
+              {submitting ? "Claiming your seat…" : "Take this seat"}
             </button>
           </>
         ) : (

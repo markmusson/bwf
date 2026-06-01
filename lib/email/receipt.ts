@@ -94,10 +94,10 @@ export function formatReceipt(
       <table width="100%" cellpadding="0" cellspacing="0" border="0" style="max-width:560px;background:#003B60;border-radius:12px;padding:28px 24px">
         <tr><td>
           ${shareImageBlock}
-          <h1 style="margin:0 0 4px;font-family:Arial, sans-serif;font-size:24px;color:#ffffff">Seat is blue.</h1>
+          <h1 style="margin:0 0 4px;font-family:Arial, sans-serif;font-size:24px;color:#ffffff">Thank you for taking your Blue Seat</h1>
           <p style="margin:0 0 18px;font-size:14px;color:#33a8e0">Blue for Bob 2026 · Edgbaston</p>
           <p style="margin:0 0 14px;font-size:15px;line-height:1.55">${greeting}</p>
-          <p style="margin:0 0 14px;font-size:15px;line-height:1.55">Thank you for supporting the Bob Willis Fund. Your seat at Edgbaston is yours.</p>
+          <p style="margin:0 0 14px;font-size:15px;line-height:1.55">Your Blue Seat has been secured. Thank you for helping us turn Edgbaston blue and making a difference in the fight against prostate cancer.</p>
           <table width="100%" cellpadding="0" cellspacing="0" border="0" style="background:rgba(0,133,202,0.15);border-radius:8px;padding:16px;margin:16px 0">
             <tr><td style="font-size:14px;line-height:1.6">
               <p style="margin:0 0 6px"><strong>Donation:</strong> ${formatGbpPence(donation.amountPence)}</p>
@@ -107,7 +107,6 @@ export function formatReceipt(
             </td></tr>
           </table>
           <p style="margin:0 0 14px;font-size:14px;line-height:1.55">Edit your tribute or seat anytime: <a style="color:#33a8e0" href="${escapeHtml(opts.managePageUrl)}">${escapeHtml(opts.managePageUrl)}</a></p>
-          <p style="margin:0 0 14px;font-size:13px;line-height:1.55;color:rgba(245,249,252,0.7)">Prize draw: free, separate from your donation. Optional postal entry — write to: ${escapeHtml(opts.prizePostalAddress)}.</p>
           <p style="margin:18px 0 0;font-size:12px;line-height:1.6;color:rgba(245,249,252,0.55)">The Bob Willis Fund is administered by The Talent Fund, registered charity ${escapeHtml(opts.charityNumber)}.</p>
         </td></tr>
       </table>
@@ -119,7 +118,7 @@ export function formatReceipt(
   const textLines = [
     `Hello${donor.name ? ` ${donor.name.trim()}` : ""},`,
     "",
-    "Thank you for supporting the Bob Willis Fund. Your seat at Edgbaston is yours.",
+    "Your Blue Seat has been secured. Thank you for helping us turn Edgbaston blue and making a difference in the fight against prostate cancer.",
     "",
     `Donation: ${formatGbpPence(donation.amountPence)}`,
     donation.giftAid ? `Gift Aid uplift: ${formatGbpPence(giftAidUplift)}` : "",
@@ -127,7 +126,6 @@ export function formatReceipt(
     `Seat name: ${donation.hideName ? "Anonymous" : (donation.displayName ?? "Anonymous")}`,
     "",
     `Manage your seat: ${opts.managePageUrl}`,
-    `Prize draw: free, separate from your donation. Postal entry: ${opts.prizePostalAddress}.`,
     "",
     `The Bob Willis Fund is administered by The Talent Fund, registered charity ${opts.charityNumber}.`,
   ].filter(Boolean);

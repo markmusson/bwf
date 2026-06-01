@@ -36,9 +36,9 @@ export function BrandFooter() {
         <Link href="/terms" className="text-white/55 hover:text-white">
           Terms
         </Link>
-        <Link href="/prize-terms" className="text-white/55 hover:text-white">
-          Prize draw T&amp;Cs
-        </Link>
+        {/* Prize draw T&Cs hidden until the prize element is
+            confirmed (Adam, 1 Jun). Page itself stays live so a direct
+            link still resolves; just not surfaced in the nav. */}
       </span>
     </footer>
   );

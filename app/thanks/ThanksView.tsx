@@ -70,12 +70,13 @@ export function ThanksView() {
           </svg>
         </div>
 
-        <h1 className="font-display text-[30px] font-black tracking-wider uppercase">
-          Seat is blue!
+        <h1 className="font-display text-[30px] leading-tight font-black tracking-wider uppercase">
+          Thank you for taking your Blue Seat
         </h1>
-        <p className="text-[13px] leading-relaxed text-white/65">
-          Thank you for supporting the Bob Willis Fund. Your donation helps fund
-          life-saving prostate cancer research. Bob would be proud.
+        <p className="text-[14px] leading-relaxed text-white/75">
+          Your Blue Seat has been secured. Please check your email for
+          confirmation. Thank you for helping us turn Edgbaston blue and making
+          a difference in the fight against prostate cancer.
         </p>
 
         {data.seat ? (

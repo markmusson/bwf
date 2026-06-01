@@ -28,7 +28,7 @@ describe("BrandFooter", () => {
     expect(link).toHaveAttribute("href", "https://bobwillisfund.org");
   });
 
-  it("links to privacy, terms and prize draw T&Cs pages", () => {
+  it("links to privacy and terms (prize draw link hidden until the prize is confirmed)", () => {
     render(<BrandFooter />);
     expect(screen.getByRole("link", { name: /Privacy/ })).toHaveAttribute(
       "href",
@@ -38,8 +38,10 @@ describe("BrandFooter", () => {
       "href",
       "/terms",
     );
+    // Prize draw link is suppressed pre-launch; the page itself still
+    // exists at /prize-terms for direct links but isn't surfaced here.
     expect(
-      screen.getByRole("link", { name: /Prize draw T&Cs/i }),
-    ).toHaveAttribute("href", "/prize-terms");
+      screen.queryByRole("link", { name: /Prize draw T&Cs/i }),
+    ).toBeNull();
   });
 });
