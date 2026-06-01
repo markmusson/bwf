@@ -175,11 +175,12 @@ async function buildSeatCard(ctx: QueryCtx, seat: Doc<"seats">) {
   };
 
   // Pull every paid donation attached to this seat, then attach
-  // approved tributes inline.
+  // approved tributes inline. by_seat index — without it this was a
+  // full-table scan on every share-card view.
   const donations = await ctx.db
     .query("donations")
-    .filter((q) => q.eq(q.field("seatId"), seat._id))
-    .collect();
+    .withIndex("by_seat", (q) => q.eq("seatId", seat._id))
+    .take(100);
   const paid = donations.filter((d) => d.status === "paid");
 
   let raisedPence = 0;
@@ -197,7 +198,7 @@ async function buildSeatCard(ctx: QueryCtx, seat: Doc<"seats">) {
     raisedPence += donation.amountPence;
     const tribute = await ctx.db
       .query("tributes")
-      .filter((q) => q.eq(q.field("donationId"), donation._id))
+      .withIndex("by_donation", (q) => q.eq("donationId", donation._id))
       .first();
     if (tribute && tribute.status === "approved") {
       tributes.push({

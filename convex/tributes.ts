@@ -3,7 +3,7 @@ import { getAuthUserId } from "@convex-dev/auth/server";
 import { moderateTribute } from "../lib/moderation";
 import { logAdminAction, requireAdmin } from "./admin";
 import { consumeRateLimit, RATE_LIMITS } from "./rateLimit";
-import type { Id } from "./_generated/dataModel";
+import type { Doc, Id } from "./_generated/dataModel";
 import { mutation, query, type MutationCtx } from "./_generated/server";
 
 const TRIBUTE_MAX_LENGTH = 280;
@@ -50,8 +50,7 @@ export async function _updateForTest(
 
   const existing = await ctx.db
     .query("tributes")
-    .withIndex("by_status")
-    .filter((q) => q.eq(q.field("donationId"), args.donationId))
+    .withIndex("by_donation", (q) => q.eq("donationId", args.donationId))
     .first();
 
   const moderation = moderateTribute(trimmed);
@@ -125,15 +124,39 @@ export const listApproved = query({
       latestAt: number;
     };
 
+    // Batch the per-donation lookups up front so wall load is O(1)
+    // round-trips to Convex instead of O(N) — at 1000 paid donations
+    // the N+1 version was hammering the DB per refresh.
+    const seatIds = Array.from(
+      new Set(paid.map((d) => d.seatId).filter((id): id is Id<"seats"> => !!id)),
+    );
+    const seatById = new Map<Id<"seats">, Doc<"seats">>();
+    await Promise.all(
+      seatIds.map(async (id) => {
+        const row = await ctx.db.get(id);
+        if (row) seatById.set(id, row);
+      }),
+    );
+    const tributeByDonation = new Map<Id<"donations">, Doc<"tributes">>();
+    await Promise.all(
+      paid.map(async (d) => {
+        const t = await ctx.db
+          .query("tributes")
+          .withIndex("by_donation", (q) => q.eq("donationId", d._id))
+          .first();
+        if (t) tributeByDonation.set(d._id, t);
+      }),
+    );
+
     const groups = new Map<Id<"seats">, SeatGroup>();
 
     for (const donation of paid) {
       if (!donation.seatId) continue;
+      const seatRow = seatById.get(donation.seatId);
+      if (!seatRow) continue;
 
       let group = groups.get(donation.seatId);
       if (!group) {
-        const seatRow = await ctx.db.get(donation.seatId);
-        if (!seatRow) continue;
         group = {
           seatId: seatRow._id,
           seat: {
@@ -151,10 +174,7 @@ export const listApproved = query({
       }
       group.raisedPence += donation.amountPence;
 
-      const tribute = await ctx.db
-        .query("tributes")
-        .filter((q) => q.eq(q.field("donationId"), donation._id))
-        .first();
+      const tribute = tributeByDonation.get(donation._id);
 
       // Approved tribute → carry the text. No tribute (or one still
       // pending / rejected) → synthetic entry with empty text so the

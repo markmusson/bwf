@@ -271,7 +271,7 @@ export const getThanksBySession = query({
 
     const tribute = await ctx.db
       .query("tributes")
-      .filter((q) => q.eq(q.field("donationId"), donation._id))
+      .withIndex("by_donation", (q) => q.eq("donationId", donation._id))
       .first();
     const tributePublic = tribute
       ? { text: tribute.text, status: tribute.status }
@@ -310,9 +310,11 @@ async function findOrCreateUserByEmail(
   email: string,
 ): Promise<Id<"users">> {
   const normalised = email.trim().toLowerCase();
+  // Use the auth-provided "email" index instead of a filter scan —
+  // critical once users grows past a few hundred.
   const existing = await ctx.db
     .query("users")
-    .filter((q) => q.eq(q.field("email"), normalised))
+    .withIndex("email", (q) => q.eq("email", normalised))
     .first();
   if (existing) return existing._id;
   return await ctx.db.insert("users", { email: normalised });
@@ -440,8 +442,7 @@ export const listMine = query({
     for (const donation of donations) {
       const tribute = await ctx.db
         .query("tributes")
-        .withIndex("by_status")
-        .filter((q) => q.eq(q.field("donationId"), donation._id))
+        .withIndex("by_donation", (q) => q.eq("donationId", donation._id))
         .first();
       const seat = donation.seatId ? await ctx.db.get(donation.seatId) : null;
       result.push({
@@ -481,8 +482,7 @@ export const listByClient = query({
     for (const donation of donations) {
       const tribute = await ctx.db
         .query("tributes")
-        .withIndex("by_status")
-        .filter((q) => q.eq(q.field("donationId"), donation._id))
+        .withIndex("by_donation", (q) => q.eq("donationId", donation._id))
         .first();
       const seat = donation.seatId ? await ctx.db.get(donation.seatId) : null;
       result.push({

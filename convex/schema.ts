@@ -52,7 +52,12 @@ export default defineSchema({
       v.literal("rejected"),
     ),
     profanityScore: v.optional(v.number()),
-  }).index("by_status", ["status"]),
+    // by_donation is added because we look up tributes from donations
+    // on every wall load and every seat card view; the donationId
+    // filter without an index was a full-table scan.
+  })
+    .index("by_status", ["status"])
+    .index("by_donation", ["donationId"]),
 
   donations: defineTable({
     // Optional during the pending phase — the Stripe webhook attaches
@@ -97,7 +102,11 @@ export default defineSchema({
     .index("by_session", ["stripeSessionId"])
     .index("by_user", ["userId"])
     .index("by_client", ["clientHoldId"])
-    .index("by_status", ["status"]),
+    .index("by_status", ["status"])
+    // by_seat backs the seat card + OG image route, both of which hit
+    // donations.where(seatId=...). Without an index that was a full
+    // table scan on every share-card view.
+    .index("by_seat", ["seatId"]),
 
   prizeEntries: defineTable({
     donationId: v.id("donations"),
