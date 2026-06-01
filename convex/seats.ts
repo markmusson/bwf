@@ -72,11 +72,33 @@ export const seedSeats = internalMutation({
 // every (stand, row, num). DESTRUCTIVE: existing donations.seatId
 // references are orphaned and any held seats are released. Use:
 //   npx convex run seats:reseedAll
+// Wipe seats, holds, donations, tributes, prize entries — and reseed
+// seats from the current STANDS. Pre-launch tool used to clear out test
+// donations after a stand layout change. DESTRUCTIVE: any paid donor
+// data is lost. Stripe events table is preserved so webhook idempotency
+// still works against any in-flight events. Users table is preserved so
+// magic-link logins survive. Use:
+//   npx convex run seats:reseedAll
 export const reseedAll = internalMutation({
   args: {},
   handler: async (ctx) => {
     let deletedSeats = 0;
     let deletedHolds = 0;
+    let deletedDonations = 0;
+    let deletedTributes = 0;
+    let deletedPrizeEntries = 0;
+    for (const entry of await ctx.db.query("prizeEntries").take(5000)) {
+      await ctx.db.delete(entry._id);
+      deletedPrizeEntries += 1;
+    }
+    for (const tribute of await ctx.db.query("tributes").take(5000)) {
+      await ctx.db.delete(tribute._id);
+      deletedTributes += 1;
+    }
+    for (const donation of await ctx.db.query("donations").take(5000)) {
+      await ctx.db.delete(donation._id);
+      deletedDonations += 1;
+    }
     for (const hold of await ctx.db.query("holds").take(5000)) {
       await ctx.db.delete(hold._id);
       deletedHolds += 1;
@@ -97,6 +119,9 @@ export const reseedAll = internalMutation({
     return {
       deletedSeats,
       deletedHolds,
+      deletedDonations,
+      deletedTributes,
+      deletedPrizeEntries,
       inserted: seats.length,
     };
   },

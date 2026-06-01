@@ -20,7 +20,7 @@ describe("StandLegend", () => {
     useQueryMock.mockReturnValue({});
     render(<StandLegend />);
     const list = screen.getByRole("list", { name: /Stands/i });
-    expect(list.querySelectorAll("li")).toHaveLength(7);
+    expect(list.querySelectorAll("li")).toHaveLength(6);
     expect(screen.getByTestId("stand-tile-hollies")).toHaveTextContent(
       /Eric Hollies Stand/,
     );
@@ -47,7 +47,7 @@ describe("StandLegend", () => {
     useQueryMock.mockReset();
     useQueryMock.mockReturnValue({});
     render(<StandLegend />);
-    for (const id of ["hollies", "south", "wyatt", "raglan"]) {
+    for (const id of ["hollies", "south", "wyatt", "scrivens"]) {
       expect(screen.getByTestId(`stand-price-${id}`).textContent).toContain(
         "£10",
       );
@@ -78,7 +78,7 @@ describe("StandLegend", () => {
       "stanley",
       "south",
       "west",
-      "priory",
+      "scrivens",
     ]) {
       expect(screen.getByTestId(`stand-tile-${stand}`).className).toMatch(
         /rounded-full/,
@@ -92,7 +92,7 @@ describe("StandLegend", () => {
     const onStandClick = vi.fn();
     const user = userEvent.setup();
     render(<StandLegend onStandClick={onStandClick} />);
-    await user.click(screen.getByTestId("stand-tile-priory"));
-    expect(onStandClick).toHaveBeenCalledWith("priory");
+    await user.click(screen.getByTestId("stand-tile-scrivens"));
+    expect(onStandClick).toHaveBeenCalledWith("scrivens");
   });
 });

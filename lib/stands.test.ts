@@ -2,14 +2,16 @@ import { describe, expect, it } from "vitest";
 import { STANDS } from "./stands";
 
 describe("STANDS", () => {
-  it("has the seven Edgbaston stands (clockwise from Pavilion)", () => {
-    expect(STANDS).toHaveLength(7);
+  it("has the six post-redevelopment Edgbaston stands (clockwise from Pavilion)", () => {
+    // The 2025 redevelopment replaced Priory and Raglan with a hotel
+    // build; their arcs are absorbed into West and Wyatt so the ring
+    // stays continuous.
+    expect(STANDS).toHaveLength(6);
     expect(STANDS.map((s) => s.id)).toEqual([
       "south",
       "west",
-      "priory",
-      "raglan",
       "wyatt",
+      "scrivens",
       "stanley",
       "hollies",
     ]);

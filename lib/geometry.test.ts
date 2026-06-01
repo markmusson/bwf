@@ -172,15 +172,13 @@ describe("buildAllSeats", () => {
     }
   });
 
-  it("emits between 1200 and 1400 seats with the mock geometry", () => {
-    // PRD §7 estimated ~3500. The mock's geometry (SEAT_SPACING=9,
-    // ROW_SPACING=10, the six-stand layout) actually yields ~1280. Flagged
-    // for product decision in BWF-1ew.10 — ramifications for the £20k
-    // target at the £10 floor (need ≥2000 donors to hit it on minimums
-    // alone).
+  it("emits at least 1200 seats with the locked geometry", () => {
+    // Adam's launch ask is "at least 1200 seats but as many as logically
+    // and visually fits". The 2025 layout yields ~1400; cap at 1600 so
+    // bumping a row anywhere can't accidentally explode the canvas.
     const seats = buildAllSeats(STANDS);
-    expect(seats.length).toBeGreaterThanOrEqual(1100);
-    expect(seats.length).toBeLessThanOrEqual(1400);
+    expect(seats.length).toBeGreaterThanOrEqual(1200);
+    expect(seats.length).toBeLessThanOrEqual(1600);
   });
 
   it("emits globally unique seat ids", () => {
