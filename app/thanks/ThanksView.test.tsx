@@ -67,8 +67,14 @@ describe("ThanksView", () => {
     expect(screen.getByText(/Bob would be proud/i)).toBeInTheDocument();
     expect(screen.getByText(/£25/)).toBeInTheDocument();
     expect(screen.getByText(/Gift Aid/i)).toBeInTheDocument();
-    const link = screen.getByRole("link", { name: /share this seat/i });
-    expect(link).toHaveAttribute("href", "/seat/wyatt-3-5");
+    // Replaced single "Share this seat" link with platform share row
+    // (X/LinkedIn/WhatsApp/Facebook/Email + Download + Copy).
+    expect(
+      screen.getByRole("region", { name: /share your seat/i }),
+    ).toBeInTheDocument();
+    const twitterLink = screen.getByRole("link", { name: /^X \(Twitter\)$/i });
+    // URL-encoded inside the Twitter intent: /seat/wyatt-3-5 -> %2Fseat%2Fwyatt-3-5
+    expect(twitterLink.getAttribute("href")).toContain("seat%2Fwyatt-3-5");
   });
 
   it("notes when the tribute is still in moderation", () => {

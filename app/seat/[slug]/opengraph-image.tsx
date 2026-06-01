@@ -26,38 +26,16 @@ interface Props {
   params: Promise<{ slug: string }>;
 }
 
-// Pixel positions on the 1200x630 cropped template, measured against
-// the reference render. Tune via /seat/<slug>/opengraph-image — the
-// layout is brittle to small changes in the source crop.
-// Brass plate boundaries measured against the cropped template:
-// x in [525,690], y in [395,445]. Center (607, 420), 165px x 50px.
-const PLAQUE = {
-  centerX: 607,
-  centerY: 420,
-  width: 168,
-  height: 50,
-};
-const SKY = {
-  titleY: 36,
-  messageY: 96,
-};
-const FOOTER_Y = 560;
-
 export default async function Image({ params }: Props) {
   const { slug } = await params;
   const convexUrl = process.env.NEXT_PUBLIC_CONVEX_URL;
   const siteUrl = process.env.SITE_URL ?? "https://blue.bobwillisfund.org";
 
-  // Read template once, inline as data URL — Vercel's edge function
-  // pricing rewards small responses but the JPEG is ~265KB and ends up
-  // base64-encoded into the PNG anyway.
   const templateBuffer = await readFile(
     path.join(process.cwd(), "public/share/stadium-template.jpg"),
   );
   const templateDataUrl = `data:image/jpeg;base64,${templateBuffer.toString("base64")}`;
 
-  // Default scene used for unclaimed seats AND any backend hiccup —
-  // a share-card preview should never error the client.
   let scene = buildSeatShareScene({
     slug,
     donors: 0,
@@ -100,7 +78,9 @@ export default async function Image({ params }: Props) {
           fontFamily: "sans-serif",
         }}
       >
-        {/* Stadium photo template — the entire background. */}
+        {/* Stadium photo template — the entire background. Donor name
+            and tribute composite into the sky banner area above the
+            stand roof; "Bob" on the chair stays as the campaign mark. */}
         <img
           src={templateDataUrl}
           width={size.width}
@@ -115,117 +95,88 @@ export default async function Image({ params }: Props) {
           }}
         />
 
-        {/* Sky: title + script message. White text reads cleanly over
-            the sky band at the top of the photo. */}
+        {/* Sky banner — semi-opaque dark navy strip across the top so
+            white text reads cleanly regardless of cloud variation. */}
         <div
           style={{
             position: "absolute",
-            top: SKY.titleY,
+            top: 0,
             left: 0,
             right: 0,
+            height: 140,
+            background:
+              "linear-gradient(180deg, rgba(0,30,60,0.78) 0%, rgba(0,30,60,0.65) 70%, rgba(0,30,60,0) 100%)",
             display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
             justifyContent: "center",
-            fontSize: 44,
-            fontWeight: 900,
-            letterSpacing: 3,
-            textTransform: "uppercase",
-            color: "#FFFFFF",
-            textShadow: "0 2px 8px rgba(0,30,60,0.45)",
+            paddingTop: 12,
           }}
         >
-          {scene.skyTitle}
-        </div>
-        <div
-          style={{
-            position: "absolute",
-            top: SKY.messageY,
-            left: 0,
-            right: 0,
-            display: "flex",
-            justifyContent: "center",
-            fontSize: 30,
-            fontStyle: "italic",
-            color: "#E8F4FB",
-            textShadow: "0 2px 6px rgba(0,30,60,0.55)",
-            maxWidth: size.width,
-          }}
-        >
-          {scene.skyMessage}
-        </div>
-
-        {/* Brass plaque: a navy panel sits over the existing brass
-            rectangle so the text contrast survives downsampling to
-            social-share thumbnail sizes. Bare text on brass renders
-            white-on-grey when Satori output is scaled below 1200px.
-            Gold border picks up the brass colour for a finished look.
-            Only drawn when the seat is claimed — an unclaimed seat
-            keeps the photo's empty brass plate on view. */}
-        {scene.plaqueName ? (
           <div
             style={{
-              position: "absolute",
-              top: PLAQUE.centerY - PLAQUE.height / 2 + 4,
-              left: PLAQUE.centerX - PLAQUE.width / 2,
-              width: PLAQUE.width,
-              height: PLAQUE.height - 8,
               display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              background: "rgba(8,20,40,0.92)",
-              borderRadius: 6,
-              border: "1px solid rgba(255,210,140,0.55)",
-              fontSize: 20,
-              fontWeight: 900,
-              letterSpacing: 0.5,
-              color: "#FFE6A8",
+              fontSize: 18,
+              letterSpacing: 6,
+              fontWeight: 700,
+              color: "rgba(255,255,255,0.8)",
               textTransform: "uppercase",
+              marginBottom: 6,
             }}
           >
-            {scene.plaqueName}
+            {scene.skyTitle}
           </div>
-        ) : null}
-
-        {/* Plaque subtitle (white, under the plaque). */}
-        <div
-          style={{
-            position: "absolute",
-            top: PLAQUE.centerY + PLAQUE.height / 2 + 14,
-            left: 0,
-            right: 0,
-            display: "flex",
-            justifyContent: "center",
-            fontSize: 22,
-            fontWeight: 700,
-            letterSpacing: 4,
-            textTransform: "uppercase",
-            color: "#FFFFFF",
-            textShadow: "0 2px 6px rgba(0,30,60,0.55)",
-          }}
-        >
-          {scene.plaqueSubtitle}
+          <div
+            style={{
+              display: "flex",
+              fontSize: scene.plaqueName.length > 14 ? 40 : 52,
+              fontWeight: 900,
+              letterSpacing: 2,
+              color: "#FFFFFF",
+              textTransform: "uppercase",
+              marginBottom: 6,
+              maxWidth: 1100,
+            }}
+          >
+            {scene.plaqueName || "A SEAT WAITS"}
+          </div>
+          <div
+            style={{
+              display: "flex",
+              fontSize: 22,
+              fontStyle: "italic",
+              color: "rgba(232,244,251,0.95)",
+              maxWidth: 1000,
+            }}
+          >
+            “{scene.skyMessage}”
+          </div>
         </div>
 
-        {/* Footer: CTA + host. Positioned over the lower seat row so
-            it sits in the photo's darker quiet band. */}
+        {/* Footer — a darker base under the chair so the CTA reads on
+            top of the photo's busiest area. */}
         <div
           style={{
             position: "absolute",
-            top: FOOTER_Y,
-            left: 64,
-            right: 64,
+            bottom: 0,
+            left: 0,
+            right: 0,
+            height: 56,
+            background:
+              "linear-gradient(0deg, rgba(0,30,60,0.85) 0%, rgba(0,30,60,0) 100%)",
             display: "flex",
+            alignItems: "flex-end",
             justifyContent: "space-between",
-            alignItems: "center",
+            padding: "0 48px 10px",
             color: "#FFFFFF",
-            fontSize: 22,
+            fontSize: 18,
             letterSpacing: 4,
             textTransform: "uppercase",
             fontWeight: 700,
-            textShadow: "0 2px 6px rgba(0,30,60,0.55)",
           }}
         >
           <span>{scene.cta}</span>
-          <span style={{ color: "#FFD700" }}>{scene.ctaHost}</span>
+          <span style={{ color: "#7DCFFF" }}>{scene.ctaHost}</span>
         </div>
       </div>
     ),

@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { buildSeatShareScene, SEAT_SHARE_LIMITS } from "./seatShare";
 
 const baseInput = {
-  slug: "raglan-1-4",
+  slug: "wyatt-1-4",
   donors: 0,
   raisedPence: 0,
   lead: null,
@@ -13,7 +13,7 @@ describe("buildSeatShareScene", () => {
   describe("unclaimed seat", () => {
     it("eyebrow reads from the slug", () => {
       const scene = buildSeatShareScene(baseInput);
-      expect(scene.standName).toBe("Raglan Stand");
+      expect(scene.standName).toBe("R.E.S. Wyatt Stand");
       expect(scene.seatLabel).toBe("Row 1, Seat 4");
     });
 

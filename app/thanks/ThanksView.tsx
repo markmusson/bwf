@@ -4,6 +4,7 @@ import { useQuery } from "convex/react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { api } from "@/convex/_generated/api";
+import { SeatShareButtons } from "@/app/components/SeatShareButtons";
 
 function formatGBP(pence: number): string {
   const pounds = pence / 100;
@@ -99,15 +100,15 @@ export function ThanksView() {
         ) : null}
       </div>
 
+      {data.seat ? (
+        <SeatShareButtons
+          seatUrl={`${window.location.origin}/seat/${data.seat.slug}`}
+          imageUrl={`${window.location.origin}/seat/${data.seat.slug}/opengraph-image`}
+          displayName={name}
+        />
+      ) : null}
+
       <div className="flex flex-col gap-2">
-        {data.seat ? (
-          <Link
-            href={`/seat/${data.seat.slug}`}
-            className="bg-bwf-blue hover:bg-bwf-blue-light font-display w-full rounded-lg px-6 py-3.5 text-center text-[18px] font-black tracking-[1px] text-white uppercase transition-colors"
-          >
-            Share this seat
-          </Link>
-        ) : null}
         <div className="grid grid-cols-2 gap-2">
           <Link
             href="/wall"

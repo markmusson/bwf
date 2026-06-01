@@ -35,11 +35,10 @@ export interface SeatShareScene {
 // Limits tuned to the visible regions of the template image — the
 // brass plate is narrow, the sky message sits on one italic line.
 export const SEAT_SHARE_LIMITS = {
-  skyMessage: 48,
-  // 12 fits within the brass plate's ~165px visible width at the
-  // chosen font/letterSpacing. Real names longer than 12 chars
-  // truncate cleanly.
-  plaqueName: 12,
+  skyMessage: 80,
+  // 24 fits across the sky banner at the chosen font size with
+  // breathing room. Real names longer than 24 chars truncate.
+  plaqueName: 24,
 };
 
 function describeStand(standId: string): string {
