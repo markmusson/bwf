@@ -208,6 +208,43 @@ export const aggregateStats = query({
 // where giftAid=true. The donor email is read from the auth users
 // table. Display name comes from the donation row. The /admin/exports
 // page formats this into CSV client-side.
+// Admin-only export: donors who ticked the "stay in touch" marketing
+// box on their donation. PECR-compliant: only donors who opted IN
+// appear. Includes recordedAt so the charity has the consent timestamp
+// for their records.
+export const marketingOptInExport = query({
+  args: {},
+  handler: async (ctx) => {
+    await requireAdmin(ctx);
+    const paid = await ctx.db
+      .query("donations")
+      .withIndex("by_status", (q) => q.eq("status", "paid"))
+      .take(5000);
+    const rows: Array<{
+      donationDate: string;
+      email: string | null;
+      displayName: string | null;
+      consentRecordedAt: number | null;
+    }> = [];
+    for (const donation of paid) {
+      if (donation.marketingOptIn !== true) continue;
+      const user = donation.userId ? await ctx.db.get(donation.userId) : null;
+      const email = user?.email ?? donation.donorEmail ?? null;
+      const date = new Date(donation._creationTime);
+      const yyyy = date.getUTCFullYear();
+      const mm = String(date.getUTCMonth() + 1).padStart(2, "0");
+      const dd = String(date.getUTCDate()).padStart(2, "0");
+      rows.push({
+        donationDate: `${yyyy}-${mm}-${dd}`,
+        email,
+        displayName: donation.displayName ?? null,
+        consentRecordedAt: donation.marketingConsentRecordedAt ?? null,
+      });
+    }
+    return rows;
+  },
+});
+
 export const giftAidExport = query({
   args: {},
   handler: async (ctx) => {
@@ -467,11 +504,39 @@ export const listByClient = query({
   handler: async (ctx, { clientHoldId }) => {
     if (clientHoldId.length < 8) return [];
 
-    const donations = await ctx.db
+    const ownDonations = await ctx.db
       .query("donations")
       .withIndex("by_client", (q) => q.eq("clientHoldId", clientHoldId))
       .order("desc")
       .take(50);
+
+    // Katie case (Adam, 1 Jun): a donor who bought two seats from two
+    // different browser sessions (incognito reset, second device, etc.)
+    // ends up with two different clientHoldIds but the SAME email from
+    // Stripe. listByClient was only seeing one. If we can prove this
+    // browser owns at least one donation, union in every paid donation
+    // sharing that email so the donor can manage all seats from any
+    // browser they paid on.
+    const seenIds = new Set(ownDonations.map((d) => d._id));
+    const emailUnion: typeof ownDonations = [];
+    const seenEmails = new Set<string>();
+    for (const d of ownDonations) {
+      const email = d.donorEmail?.trim().toLowerCase();
+      if (!email || seenEmails.has(email)) continue;
+      seenEmails.add(email);
+      const others = await ctx.db
+        .query("donations")
+        .filter((q) => q.eq(q.field("donorEmail"), email))
+        .take(50);
+      for (const o of others) {
+        if (seenIds.has(o._id)) continue;
+        seenIds.add(o._id);
+        emailUnion.push(o);
+      }
+    }
+    const donations = [...ownDonations, ...emailUnion].sort(
+      (a, b) => b._creationTime - a._creationTime,
+    );
 
     const result: Array<{
       donation: (typeof donations)[number];
