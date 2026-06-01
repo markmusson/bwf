@@ -94,23 +94,27 @@ export const update = mutation({
   },
 });
 
-// Public — approved tributes for the /wall page. One row per seat
-// (single-claim). Bounded at 500 most recent approved tributes;
-// pagination lands when we outgrow that.
+// Public — every paid seat for the /wall page, grouped one row per
+// seat (single-claim). Donations WITHOUT an approved tribute appear
+// as a synthetic entry with text="" so the wall populates from
+// donation #1 rather than waiting on the moderation queue. Bounded
+// at 1000 most recent paid donations; pagination lands when we
+// outgrow that.
 export const listApproved = query({
   args: {},
   handler: async (ctx) => {
-    const approved = await ctx.db
-      .query("tributes")
-      .withIndex("by_status", (q) => q.eq("status", "approved"))
+    const paid = await ctx.db
+      .query("donations")
+      .withIndex("by_status", (q) => q.eq("status", "paid"))
       .order("desc")
-      .take(500);
+      .take(1000);
 
     type TributeEntry = {
-      tributeId: Id<"tributes">;
+      tributeId: Id<"tributes"> | string;
       text: string;
       createdAt: number;
       displayName: string | null;
+      recipientName: string | null;
     };
     type SeatGroup = {
       seatId: Id<"seats">;
@@ -123,9 +127,7 @@ export const listApproved = query({
 
     const groups = new Map<Id<"seats">, SeatGroup>();
 
-    for (const tribute of approved) {
-      const donation = await ctx.db.get(tribute.donationId);
-      if (!donation || donation.status !== "paid") continue;
+    for (const donation of paid) {
       if (!donation.seatId) continue;
 
       let group = groups.get(donation.seatId);
@@ -147,21 +149,46 @@ export const listApproved = query({
         };
         groups.set(donation.seatId, group);
       }
-
-      group.tributes.push({
-        tributeId: tribute._id,
-        text: tribute.text,
-        createdAt: tribute._creationTime,
-        displayName: donation.hideName ? null : (donation.displayName ?? null),
-      });
       group.raisedPence += donation.amountPence;
-      if (tribute._creationTime > group.latestAt) {
-        group.latestAt = tribute._creationTime;
+
+      const tribute = await ctx.db
+        .query("tributes")
+        .filter((q) => q.eq(q.field("donationId"), donation._id))
+        .first();
+
+      // Approved tribute → carry the text. No tribute (or one still
+      // pending / rejected) → synthetic entry with empty text so the
+      // donor's dedication still appears on the wall, just sans words.
+      const entry: TributeEntry =
+        tribute && tribute.status === "approved"
+          ? {
+              tributeId: tribute._id,
+              text: tribute.text,
+              createdAt: tribute._creationTime,
+              displayName: donation.hideName
+                ? null
+                : (donation.displayName ?? null),
+              recipientName: donation.recipientName ?? null,
+            }
+          : {
+              // Use the donation id as a stable key so React rendering
+              // and the search filter both have something to hash.
+              tributeId: `donation:${donation._id}`,
+              text: "",
+              createdAt: donation._creationTime,
+              displayName: donation.hideName
+                ? null
+                : (donation.displayName ?? null),
+              recipientName: donation.recipientName ?? null,
+            };
+      group.tributes.push(entry);
+      if (entry.createdAt > group.latestAt) {
+        group.latestAt = entry.createdAt;
       }
     }
 
     // Sort each group's tributes newest-first, then sort groups by
-    // their most recent tribute.
+    // their most recent activity.
     const result = Array.from(groups.values());
     for (const group of result) {
       group.tributes.sort((a, b) => b.createdAt - a.createdAt);

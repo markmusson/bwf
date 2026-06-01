@@ -72,7 +72,8 @@ export function StadiumExperience() {
           </p>
           <p className="text-[15px] leading-snug text-white">
             Donate £10 to turn a virtual seat blue, support prostate cancer
-            research in Bob Willis&apos; name, dedicate the seat to a loved one.
+            research in Bob Willis&apos; name and dedicate the seat to a loved
+            one.
           </p>
           <p className="mt-0.5 text-[12px] leading-snug text-white/75">
             Click any available seat below to claim it. Hover over a claimed

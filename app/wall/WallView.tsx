@@ -109,11 +109,21 @@ export function WallView() {
                     className="flex w-full flex-col items-center gap-1 py-2 first:pt-0 last:pb-0"
                   >
                     <span className="font-display text-bwf-pale text-[10px] tracking-[1.5px] uppercase">
-                      {tribute.displayName ?? "Anonymous"}
+                      {tribute.recipientName
+                        ? `In tribute to ${tribute.recipientName}`
+                        : (tribute.displayName ?? "Anonymous")}
                     </span>
-                    <p className="max-w-prose text-[15px] leading-snug text-white">
-                      {tribute.text}
-                    </p>
+                    {tribute.text ? (
+                      <p className="max-w-prose text-[15px] leading-snug text-white">
+                        {tribute.text}
+                      </p>
+                    ) : (
+                      <p className="max-w-prose text-[13px] leading-snug text-white/55 italic">
+                        {tribute.displayName
+                          ? `${tribute.displayName} dedicated this seat.`
+                          : "A seat dedicated for Bob."}
+                      </p>
+                    )}
                   </li>
                 ))}
               </ul>
