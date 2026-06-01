@@ -102,10 +102,15 @@ export const createSession = action({
     }
 
     const stripe = getStripe();
+    // No payment_method_types: when omitted, Checkout pulls the live
+    // method list from the Stripe dashboard, which lets Apple Pay,
+    // Google Pay, Link and any future wallets surface dynamically.
+    // Hard-coding ["card"] was capping the funnel to keyed entry only.
+    // Apple Pay also needs the domain registered separately at
+    // Settings -> Payment methods -> Apple Pay -> Web domains.
     const session = await stripe.checkout.sessions.create({
       mode: "payment",
       ui_mode: "embedded_page",
-      payment_method_types: ["card"],
       currency: "gbp",
       line_items: [
         {
