@@ -54,9 +54,14 @@ export const sendReceipt = internalAction({
 
     // Receipt URLs derive from SITE_URL so they track whatever domain
     // we're on (bwf-seven.vercel.app pre-cutover, blue.bobwillisfund.org
-    // after). Falls back to the lib default if SITE_URL is missing —
-    // shouldn't happen on prod but keeps tests and dev sane.
-    const siteUrl = process.env.SITE_URL;
+    // after). Strip any trailing path so a mis-set
+    //   SITE_URL=https://example.com/stadium
+    // produces /seat/<slug>/opengraph-image and /manage at the origin,
+    // not under the wrong sub-path.
+    const rawSiteUrl = process.env.SITE_URL;
+    const siteUrl = rawSiteUrl
+      ? rawSiteUrl.match(/^https?:\/\/[^/]+/)?.[0]
+      : undefined;
     let shareImageUrl: string | undefined;
     if (siteUrl && donation.seatId) {
       const seat = await ctx.runQuery(internal.seats.getByIdInternal, {
@@ -102,5 +107,48 @@ export const sendReceipt = internalAction({
 
     await ctx.runMutation(internal.donations.markReceiptSent, { donationId });
     return { sent: true };
+  },
+});
+
+// One-shot test send so we can prove the receipt + image embed before
+// any real donor sees it. Renders a fake "Mark Musson dedicated wyatt-1-1"
+// receipt and pushes it through Resend with the exact same builder
+// the live flow uses. Run with:
+//   npx convex run email:sendTestReceipt --arg '{"to":"markmusson@gmail.com"}'
+export const sendTestReceipt = internalAction({
+  args: { to: v.string() },
+  handler: async (_ctx, { to }): Promise<{ sent: boolean; preview: string }> => {
+    const apiKey = process.env.AUTH_RESEND_KEY;
+    if (!apiKey) throw new ConvexError("resend_not_configured");
+    const from = process.env.EMAIL_FROM ?? "onboarding@resend.dev";
+    const rawSiteUrl = process.env.SITE_URL;
+    const siteUrl = rawSiteUrl
+      ? rawSiteUrl.match(/^https?:\/\/[^/]+/)?.[0]
+      : undefined;
+    const shareImageUrl = siteUrl
+      ? `${siteUrl}/seat/wyatt-1-1/opengraph-image`
+      : undefined;
+
+    const { subject, html, text } = formatReceipt(
+      {
+        amountPence: 1000,
+        giftAid: false,
+        hideName: false,
+        displayName: "Mark Musson",
+      },
+      { email: to, name: "Mark Musson" },
+      {
+        ...(siteUrl ? { managePageUrl: `${siteUrl}/manage` } : {}),
+        ...(siteUrl ? { fundraisingPageUrl: `${siteUrl}/stadium` } : {}),
+        ...(shareImageUrl ? { shareImageUrl } : {}),
+      },
+    );
+
+    const resend = new Resend(apiKey);
+    const result = await resend.emails.send({ from, to, subject, html, text });
+    if (result.error) {
+      throw new ConvexError(`resend_error:${result.error.message}`);
+    }
+    return { sent: true, preview: shareImageUrl ?? "no SITE_URL" };
   },
 });
