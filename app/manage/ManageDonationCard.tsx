@@ -83,6 +83,7 @@ export function ManageDonationCard(props: Props) {
         await updateTribute({
           donationId: props.donationId,
           text: tributeText,
+          ...(props.clientHoldId ? { clientHoldId: props.clientHoldId } : {}),
         });
       }
       setSavedAt(Date.now());

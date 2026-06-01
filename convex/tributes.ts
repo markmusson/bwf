@@ -9,21 +9,33 @@ import { mutation, query, type MutationCtx } from "./_generated/server";
 const TRIBUTE_MAX_LENGTH = 280;
 
 interface UpdateArgs {
-  userId: Id<"users">;
+  userId: Id<"users"> | null;
+  clientHoldId?: string;
   donationId: Id<"donations">;
   text: string;
 }
 
-// Donor edits their tribute via /manage. Auth + ownership-via-donation
-// is enforced. Editing flips the tribute back to pending so the
-// profanity worker re-checks it before it shows on the wall.
+// Donor edits their tribute via /manage. Auth-by-userId OR
+// ownership-by-clientHoldId is sufficient — matches donations.update
+// so a donor who paid without ever signing in via magic-link can still
+// edit from the same browser. Editing flips the tribute back to
+// pending so the profanity worker re-checks it before it shows on
+// the wall.
 export async function _updateForTest(
   ctx: MutationCtx,
   args: UpdateArgs,
 ): Promise<{ tributeId: Id<"tributes"> }> {
   const donation = await ctx.db.get(args.donationId);
   if (!donation) throw new ConvexError("donation_not_found");
-  if (donation.userId !== args.userId) throw new ConvexError("forbidden");
+
+  const userMatches = args.userId && donation.userId === args.userId;
+  const clientMatches =
+    args.clientHoldId &&
+    args.clientHoldId.length >= 8 &&
+    donation.clientHoldId === args.clientHoldId;
+  if (!userMatches && !clientMatches) {
+    throw new ConvexError(args.userId ? "forbidden" : "unauthenticated");
+  }
 
   const trimmed = args.text.trim();
   if (trimmed.length > TRIBUTE_MAX_LENGTH) {
@@ -71,10 +83,13 @@ export async function _updateForTest(
 }
 
 export const update = mutation({
-  args: { donationId: v.id("donations"), text: v.string() },
+  args: {
+    donationId: v.id("donations"),
+    clientHoldId: v.optional(v.string()),
+    text: v.string(),
+  },
   handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx);
-    if (!userId) throw new ConvexError("unauthenticated");
     return await _updateForTest(ctx, { ...args, userId });
   },
 });
