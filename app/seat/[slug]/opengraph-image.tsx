@@ -55,7 +55,11 @@ export default async function Image({ params }: Props) {
           donors: card.donors,
           raisedPence: card.raisedPence,
           lead: lead
-            ? { displayName: lead.displayName, text: lead.text }
+            ? {
+                displayName: lead.displayName,
+                text: lead.text,
+                recipientName: lead.recipientName,
+              }
             : null,
           siteUrl,
         });

@@ -29,11 +29,25 @@ describe("StepTribute", () => {
     render(
       <StepTribute value={EMPTY_STEP_TRIBUTE} onChange={() => undefined} />,
     );
-    expect(screen.getByLabelText(/Display name/i)).toHaveValue("");
+    expect(screen.getByLabelText(/Who is this seat dedicated to/i)).toHaveValue(
+      "",
+    );
+    expect(screen.getByLabelText(/Your name \(optional\)/i)).toHaveValue("");
     expect(screen.getByLabelText(/Leave a tribute/i)).toHaveValue("");
     expect(screen.getByLabelText(/Hide my name/i)).not.toBeChecked();
     expect(screen.getByLabelText(/Hide my donation amount/i)).not.toBeChecked();
     expect(screen.getByText(/280 characters left/)).toBeInTheDocument();
+  });
+
+  it("captures the recipient name typed by the donor", async () => {
+    const probe = setup();
+    const user = userEvent.setup();
+    const input = screen.getByLabelText(/Who is this seat dedicated to/i);
+    for (const char of "Ricky") {
+      await user.type(input, char);
+      probe.rerender();
+    }
+    expect(probe.value.recipientName).toBe("Ricky");
   });
 
   it("appends typed characters into the tribute text", async () => {

@@ -54,6 +54,7 @@ function payloadToActionArgs(
   const displayName = payload.tribute.hideName
     ? undefined
     : payload.donorName.trim() || undefined;
+  const recipientName = payload.tribute.recipientName.trim() || undefined;
 
   return {
     clientHoldId,
@@ -64,6 +65,7 @@ function payloadToActionArgs(
     hideName: payload.tribute.hideName,
     hideAmount: payload.tribute.hideAmount,
     displayName,
+    recipientName,
     marketingOptIn,
     marketingConsentRecordedAt,
     tributeText,

@@ -77,6 +77,10 @@ export default defineSchema({
     hideName: v.boolean(),
     hideAmount: v.boolean(),
     displayName: v.optional(v.string()),
+    // Optional: who the donor is dedicating the seat to. Adam's
+    // launch ask. Takes priority over displayName on the share card
+    // plaque per the hierarchy in buildSeatShareScene.
+    recipientName: v.optional(v.string()),
     avatarConfig: v.optional(v.string()),
     marketingOptIn: v.optional(v.boolean()),
     marketingConsentRecordedAt: v.optional(v.number()),

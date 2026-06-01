@@ -56,14 +56,78 @@ describe("buildSeatShareScene", () => {
       expect(scene.skyTitle).toBe("THIS SEAT IS DEDICATED TO");
     });
 
-    it("falls back to ANONYMOUS on the plaque (short so it fits one line)", () => {
+    it("falls back to BOB on the plaque per Adam's hierarchy", () => {
       const scene = buildSeatShareScene(input);
-      expect(scene.plaqueName).toBe("ANONYMOUS");
+      expect(scene.plaqueName).toBe("BOB");
     });
 
     it("uses the default sky message", () => {
       const scene = buildSeatShareScene(input);
       expect(scene.skyMessage).toBe("a tribute to a life well lived");
+    });
+  });
+
+  describe("Adam's name hierarchy", () => {
+    // 1. recipientName (full) → use as-is on the plaque
+    // 2. recipientName (first only) → use as-is (we don't second-guess)
+    // 3. no recipientName → donor's FIRST name only
+    // 4. no donor either → "Bob"
+    it("uses the recipient name when provided (full)", () => {
+      const scene = buildSeatShareScene({
+        ...baseInput,
+        donors: 1,
+        raisedPence: 1000,
+        lead: {
+          displayName: "Sarah Williams",
+          text: "for my dad",
+          recipientName: "Ricky Moore",
+        },
+      });
+      expect(scene.plaqueName).toBe("RICKY MOORE");
+    });
+
+    it("uses the recipient name when provided as a first-name only", () => {
+      const scene = buildSeatShareScene({
+        ...baseInput,
+        donors: 1,
+        raisedPence: 1000,
+        lead: {
+          displayName: "Sarah Williams",
+          text: "for my dad",
+          recipientName: "Ricky",
+        },
+      });
+      expect(scene.plaqueName).toBe("RICKY");
+    });
+
+    it("falls back to the donor's FIRST name when no recipient is set", () => {
+      const scene = buildSeatShareScene({
+        ...baseInput,
+        donors: 1,
+        raisedPence: 1000,
+        lead: { displayName: "Sarah Williams", text: "in memory" },
+      });
+      expect(scene.plaqueName).toBe("SARAH");
+    });
+
+    it("falls back to BOB when no recipient and no donor name", () => {
+      const scene = buildSeatShareScene({
+        ...baseInput,
+        donors: 1,
+        raisedPence: 1000,
+        lead: { displayName: null, text: "love" },
+      });
+      expect(scene.plaqueName).toBe("BOB");
+    });
+
+    it("falls back to BOB when claimed without a tribute (no donor name source)", () => {
+      const scene = buildSeatShareScene({
+        ...baseInput,
+        donors: 1,
+        raisedPence: 1000,
+        lead: null,
+      });
+      expect(scene.plaqueName).toBe("BOB");
     });
   });
 
@@ -75,9 +139,9 @@ describe("buildSeatShareScene", () => {
       lead: { displayName: null, text: "for my dad" },
     };
 
-    it("uses the ANONYMOUS label on the plaque", () => {
+    it("falls back to BOB on the plaque (hierarchy step 4)", () => {
       const scene = buildSeatShareScene(input);
-      expect(scene.plaqueName).toBe("ANONYMOUS");
+      expect(scene.plaqueName).toBe("BOB");
     });
 
     it("still shows the tribute body when the name is hidden", () => {
@@ -103,9 +167,9 @@ describe("buildSeatShareScene", () => {
       },
     };
 
-    it("uppercases the display name on the plaque", () => {
+    it("uppercases the donor's FIRST name on the plaque (hierarchy step 3)", () => {
       const scene = buildSeatShareScene(input);
-      expect(scene.plaqueName).toBe("RICKY MOORE");
+      expect(scene.plaqueName).toBe("RICKY");
     });
 
     it("uses the tribute as the sky script message", () => {
@@ -148,13 +212,13 @@ describe("buildSeatShareScene", () => {
       expect(scene.skyMessage.endsWith("…")).toBe(true);
     });
 
-    it("truncates a long display name on the plaque", () => {
+    it("truncates a long recipient name on the plaque", () => {
       const longName = "Alexandros Konstantinopoulos III the Magnificent";
       const scene = buildSeatShareScene({
         ...baseInput,
         donors: 1,
         raisedPence: 1000,
-        lead: { displayName: longName, text: "hi" },
+        lead: { displayName: "Sarah", text: "hi", recipientName: longName },
       });
       expect(scene.plaqueName.length).toBeLessThanOrEqual(
         SEAT_SHARE_LIMITS.plaqueName,

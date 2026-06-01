@@ -188,6 +188,7 @@ async function buildSeatCard(ctx: QueryCtx, seat: Doc<"seats">) {
     text: string;
     createdAt: number;
     displayName: string | null;
+    recipientName: string | null;
     amountPence: number | null;
     giftAid: boolean;
   }> = [];
@@ -204,6 +205,9 @@ async function buildSeatCard(ctx: QueryCtx, seat: Doc<"seats">) {
         text: tribute.text,
         createdAt: tribute._creationTime,
         displayName: donation.hideName ? null : (donation.displayName ?? null),
+        // recipientName is always public — it names the person being
+        // honoured, not the donor. hideName only masks the donor.
+        recipientName: donation.recipientName ?? null,
         amountPence: donation.hideAmount ? null : donation.amountPence,
         giftAid: donation.giftAid,
       });

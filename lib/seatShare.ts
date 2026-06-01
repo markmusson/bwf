@@ -16,6 +16,11 @@ export interface SeatShareSceneInput {
   lead: {
     displayName: string | null;
     text: string;
+    // Optional: who the donor is dedicating the seat to. Takes
+    // priority over the donor's own name on the plaque per Adam's
+    // hierarchy. May be a full name or just a first name — we use
+    // whatever the donor typed verbatim.
+    recipientName?: string | null;
   } | null;
   siteUrl: string;
 }
@@ -92,16 +97,19 @@ export function buildSeatShareScene(
     };
   }
 
-  // Claimed seat. The lead tribute is optional — donors can pay
-  // without writing a tribute, or theirs may be pending moderation.
-  // In both cases the seat is still claimed; we just fall back to a
-  // gentle anonymous treatment.
+  // Claimed seat. Plaque name follows Adam's hierarchy:
+  //   1. recipientName (full or first, verbatim)
+  //   2. donor's first name (split displayName on whitespace)
+  //   3. "BOB" (campaign mark fallback)
   const lead = input.lead;
-  const rawName =
-    lead && lead.displayName !== null && lead.displayName.trim().length > 0
-      ? lead.displayName.trim().toUpperCase()
-      : "ANONYMOUS";
-  const plaqueName = truncate(rawName, SEAT_SHARE_LIMITS.plaqueName);
+  const recipient = lead?.recipientName?.trim();
+  const donorDisplay = lead?.displayName?.trim();
+  const donorFirst = donorDisplay ? donorDisplay.split(/\s+/)[0] : undefined;
+  const rawName = recipient || donorFirst || "Bob";
+  const plaqueName = truncate(
+    rawName.toUpperCase(),
+    SEAT_SHARE_LIMITS.plaqueName,
+  );
 
   const rawMessage =
     lead && lead.text && lead.text.trim().length > 0

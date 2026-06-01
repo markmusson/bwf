@@ -37,6 +37,7 @@ export interface CreateDraftArgs {
   hideName: boolean;
   hideAmount: boolean;
   displayName?: string;
+  recipientName?: string;
   avatarConfig?: string;
   marketingOptIn?: boolean;
   marketingConsentRecordedAt?: number;
@@ -102,6 +103,7 @@ export async function _createDraftForTest(
     hideName: args.hideName,
     hideAmount: args.hideAmount,
     displayName: args.displayName,
+    recipientName: args.recipientName,
     avatarConfig: args.avatarConfig,
     marketingOptIn: args.marketingOptIn,
     marketingConsentRecordedAt: args.marketingConsentRecordedAt,
@@ -140,6 +142,7 @@ export const createDraft = internalMutation({
     hideName: v.boolean(),
     hideAmount: v.boolean(),
     displayName: v.optional(v.string()),
+    recipientName: v.optional(v.string()),
     avatarConfig: v.optional(v.string()),
     marketingOptIn: v.optional(v.boolean()),
     marketingConsentRecordedAt: v.optional(v.number()),

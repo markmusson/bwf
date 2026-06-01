@@ -4,6 +4,7 @@ const TRIBUTE_MAX_LENGTH = 280;
 
 export interface StepTributeValue {
   displayName: string;
+  recipientName: string;
   text: string;
   hideName: boolean;
   hideAmount: boolean;
@@ -11,6 +12,7 @@ export interface StepTributeValue {
 
 export const EMPTY_STEP_TRIBUTE: StepTributeValue = {
   displayName: "",
+  recipientName: "",
   text: "",
   hideName: false,
   hideAmount: false,
@@ -27,8 +29,29 @@ export function StepTribute({ value, onChange }: Props) {
   return (
     <div className="flex flex-col gap-5">
       <div className="flex flex-col gap-1">
+        <label htmlFor="tribute-recipient" className="text-sm font-medium">
+          Who is this seat dedicated to? (optional)
+        </label>
+        <input
+          id="tribute-recipient"
+          type="text"
+          value={value.recipientName}
+          onChange={(event) =>
+            onChange({ ...value, recipientName: event.target.value })
+          }
+          placeholder="e.g. Bob — the name shown on the seat plaque"
+          maxLength={60}
+          className="ring-bwf-blue/40 rounded-lg bg-white/10 px-3 py-2 text-base ring-1 outline-none focus:ring-2"
+        />
+        <p className="text-xs text-white/60">
+          This is the name printed on your virtual seat. Leave blank and we
+          fall back to your first name, then to &ldquo;Bob&rdquo;.
+        </p>
+      </div>
+
+      <div className="flex flex-col gap-1">
         <label htmlFor="tribute-display-name" className="text-sm font-medium">
-          Display name (optional)
+          Your name (optional)
         </label>
         <input
           id="tribute-display-name"
@@ -37,12 +60,13 @@ export function StepTribute({ value, onChange }: Props) {
           onChange={(event) =>
             onChange({ ...value, displayName: event.target.value })
           }
-          placeholder="e.g. Sarah W. — leave blank for Anonymous"
+          placeholder="e.g. Sarah W. — shown on the wall as the donor"
           maxLength={60}
           className="ring-bwf-blue/40 rounded-lg bg-white/10 px-3 py-2 text-base ring-1 outline-none focus:ring-2"
         />
         <p className="text-xs text-white/60">
-          Shown alongside your seat. Leave blank to appear as Anonymous.
+          The donor name shown next to the tribute. Leave blank to appear as
+          Anonymous on the wall.
         </p>
       </div>
 
