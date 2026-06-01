@@ -82,11 +82,11 @@ describe("formatReceipt", () => {
         { email: "donor@example.com" },
         {
           shareImageUrl:
-            "https://blue.bobwillisfund.org/seat/raglan-1-4/opengraph-image",
+            "https://blue.bobwillisfund.org/seat/wyatt-1-4/opengraph-image",
         },
       );
       expect(out.html).toContain(
-        'src="https://blue.bobwillisfund.org/seat/raglan-1-4/opengraph-image"',
+        'src="https://blue.bobwillisfund.org/seat/wyatt-1-4/opengraph-image"',
       );
       // Image should sit above the receipt body so the dedication is
       // the first thing the donor sees.
