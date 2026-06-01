@@ -108,6 +108,12 @@ export function AdminDashboard() {
           Moderation queue
         </Link>
         <Link
+          href="/admin/search"
+          className="bg-bwf-pale text-bwf-navy font-display rounded-full px-5 py-2 text-sm tracking-wider uppercase"
+        >
+          Donor search
+        </Link>
+        <Link
           href="/admin/exports"
           className="bg-bwf-pale text-bwf-navy font-display rounded-full px-5 py-2 text-sm tracking-wider uppercase"
         >

@@ -281,6 +281,23 @@ export const adminApprove = mutation({
   },
 });
 
+// Admin override: rewrite a tribute's text. Use when the donor
+// snuck something through (e.g. "James Bond" jokes) and we'd rather
+// edit than reject. Logged to the audit trail.
+export const adminEditText = mutation({
+  args: { tributeId: v.id("tributes"), text: v.string() },
+  handler: async (ctx, { tributeId, text }) => {
+    const admin = await requireAdmin(ctx);
+    await ctx.db.patch(tributeId, { text: text.trim() });
+    await logAdminAction(ctx, admin, {
+      action: "tribute.adminEditText",
+      targetType: "tribute",
+      targetId: tributeId,
+    });
+    return { editedBy: admin.email };
+  },
+});
+
 export const adminReject = mutation({
   args: { tributeId: v.id("tributes") },
   handler: async (ctx, { tributeId }) => {

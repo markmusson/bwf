@@ -11,7 +11,7 @@ import {
   query,
   type MutationCtx,
 } from "./_generated/server";
-import { requireAdmin } from "./admin";
+import { logAdminAction, requireAdmin } from "./admin";
 import { consumeRateLimit, RATE_LIMITS } from "./rateLimit";
 
 const MIN_DONATION_PENCE = 1000;
@@ -208,6 +208,101 @@ export const aggregateStats = query({
 // where giftAid=true. The donor email is read from the auth users
 // table. Display name comes from the donation row. The /admin/exports
 // page formats this into CSV client-side.
+// Admin-only: search paid donations by donor display name OR recipient
+// name OR email. Case-insensitive substring match. Capped at 50 hits
+// per query. Used by /admin/search to find James-Bond-tier jokes that
+// slipped past moderation.
+export const adminSearch = query({
+  args: { q: v.string() },
+  handler: async (ctx, { q }) => {
+    await requireAdmin(ctx);
+    const needle = q.trim().toLowerCase();
+    if (needle.length < 2) return [];
+    const paid = await ctx.db
+      .query("donations")
+      .withIndex("by_status", (q) => q.eq("status", "paid"))
+      .take(5000);
+    const hits = paid.filter((d) => {
+      const hay = [
+        d.displayName ?? "",
+        d.recipientName ?? "",
+        d.donorEmail ?? "",
+      ]
+        .join(" ")
+        .toLowerCase();
+      return hay.includes(needle);
+    });
+    const result = [] as Array<{
+      donationId: Id<"donations">;
+      amountPence: number;
+      displayName: string | null;
+      recipientName: string | null;
+      hideName: boolean;
+      hideAmount: boolean;
+      email: string | null;
+      tribute: { tributeId: Id<"tributes">; text: string; status: string } | null;
+      seat: { stand: string; row: number; num: number } | null;
+      createdAt: number;
+    }>;
+    for (const d of hits.slice(0, 50)) {
+      const tribute = await ctx.db
+        .query("tributes")
+        .withIndex("by_donation", (q) => q.eq("donationId", d._id))
+        .first();
+      const seat = d.seatId ? await ctx.db.get(d.seatId) : null;
+      result.push({
+        donationId: d._id,
+        amountPence: d.amountPence,
+        displayName: d.displayName ?? null,
+        recipientName: d.recipientName ?? null,
+        hideName: d.hideName,
+        hideAmount: d.hideAmount,
+        email: d.donorEmail ?? null,
+        tribute: tribute
+          ? { tributeId: tribute._id, text: tribute.text, status: tribute.status }
+          : null,
+        seat: seat ? { stand: seat.stand, row: seat.row, num: seat.num } : null,
+        createdAt: d._creationTime,
+      });
+    }
+    return result;
+  },
+});
+
+// Admin override: edit a donor's displayName / recipientName / hide
+// flags. Logged to adminAuditLog so we have a paper trail of every
+// content moderation touch.
+export const adminEditDonor = mutation({
+  args: {
+    donationId: v.id("donations"),
+    displayName: v.optional(v.string()),
+    recipientName: v.optional(v.string()),
+    hideName: v.optional(v.boolean()),
+    hideAmount: v.optional(v.boolean()),
+  },
+  handler: async (ctx, args) => {
+    const admin = await requireAdmin(ctx);
+    const patch: {
+      displayName?: string;
+      recipientName?: string;
+      hideName?: boolean;
+      hideAmount?: boolean;
+    } = {};
+    if (args.displayName !== undefined) patch.displayName = args.displayName;
+    if (args.recipientName !== undefined)
+      patch.recipientName = args.recipientName;
+    if (args.hideName !== undefined) patch.hideName = args.hideName;
+    if (args.hideAmount !== undefined) patch.hideAmount = args.hideAmount;
+    await ctx.db.patch(args.donationId, patch);
+    await logAdminAction(ctx, admin, {
+      action: "donation.adminEdit",
+      targetType: "donation",
+      targetId: args.donationId,
+    });
+    return { editedBy: admin.email };
+  },
+});
+
 // Admin-only export: donors who ticked the "stay in touch" marketing
 // box on their donation. PECR-compliant: only donors who opted IN
 // appear. Includes recordedAt so the charity has the consent timestamp
