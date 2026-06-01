@@ -205,6 +205,7 @@ function errorMessage(error: unknown): string {
 export function StadiumCanvas({ onSeatClaimed }: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const wrapRef = useRef<HTMLDivElement>(null);
+  const actionPanelRef = useRef<HTMLDivElement>(null);
   const seatRows = useQuery(api.seats.list);
   const heldIds = useQuery(api.holds.activeSeatIds);
   const tributeGroups = useQuery(api.tributes.listApproved);
@@ -258,6 +259,17 @@ export function StadiumCanvas({ onSeatClaimed }: Props) {
 
   const [selected, setSelected] = useState<Seat | null>(null);
   const [hovered, setHovered] = useState<Seat | null>(null);
+
+  // Mobile bug fix: tapping a seat selects it, but the action panel
+  // sits below the canvas off-screen. Donors then tap the gold status
+  // text in the tooltip thinking it's the CTA. Scrolling the panel
+  // into view after selection puts the real button under the thumb.
+  useEffect(() => {
+    if (!selected) return;
+    const node = actionPanelRef.current;
+    if (!node || typeof node.scrollIntoView !== "function") return;
+    node.scrollIntoView({ behavior: "smooth", block: "center" });
+  }, [selected]);
   const [tooltipPos, setTooltipPos] = useState<{
     left: number;
     top: number;
@@ -473,6 +485,7 @@ export function StadiumCanvas({ onSeatClaimed }: Props) {
       </div>
 
       <div
+        ref={actionPanelRef}
         aria-live="polite"
         className="ring-bwf-blue/30 flex w-full flex-col gap-3 rounded-xl bg-white/5 p-4 ring-1"
       >
@@ -481,11 +494,14 @@ export function StadiumCanvas({ onSeatClaimed }: Props) {
             <p className="text-sm" data-testid="selected-seat-readout">
               Selected: <strong>{describeSeat(selected)}</strong>
             </p>
+            <p className="font-display text-bwf-pale text-[11px] tracking-[2px] uppercase">
+              Tap below to claim your seat
+            </p>
             <button
               type="button"
               onClick={takeSeat}
               disabled={submitting || !clientHoldId}
-              className="font-display bg-bwf-blue hover:bg-bwf-blue-light self-start rounded-full px-6 py-2.5 text-sm tracking-wider text-white transition-colors disabled:opacity-50"
+              className="font-display bg-bwf-blue hover:bg-bwf-blue-light w-full rounded-full px-6 py-3.5 text-base font-semibold tracking-wider text-white transition-colors disabled:opacity-50 sm:w-auto sm:self-start sm:py-2.5 sm:text-sm sm:font-normal"
             >
               {submitting ? "Taking your seat…" : "Take this seat"}
             </button>
