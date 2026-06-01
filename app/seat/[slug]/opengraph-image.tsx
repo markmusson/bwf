@@ -99,33 +99,35 @@ export default async function Image({ params }: Props) {
           }}
         />
 
-        {/* Sky banner — semi-opaque dark navy strip across the top so
-            white text reads cleanly regardless of cloud variation. */}
+        {/* Sky banner — a heavier semi-opaque navy strip so the name
+            and dedication read sharply even at thumbnail/unfurl sizes.
+            Taller than the original to fit a larger dedication line. */}
         <div
           style={{
             position: "absolute",
             top: 0,
             left: 0,
             right: 0,
-            height: 140,
+            height: 180,
             background:
-              "linear-gradient(180deg, rgba(0,30,60,0.78) 0%, rgba(0,30,60,0.65) 70%, rgba(0,30,60,0) 100%)",
+              "linear-gradient(180deg, rgba(0,20,45,0.88) 0%, rgba(0,20,45,0.78) 70%, rgba(0,20,45,0) 100%)",
             display: "flex",
             flexDirection: "column",
             alignItems: "center",
             justifyContent: "center",
-            paddingTop: 12,
+            paddingTop: 14,
           }}
         >
           <div
             style={{
               display: "flex",
-              fontSize: 18,
-              letterSpacing: 6,
-              fontWeight: 700,
-              color: "rgba(255,255,255,0.8)",
+              fontSize: 20,
+              letterSpacing: 8,
+              fontWeight: 800,
+              color: "rgba(255,230,168,0.95)",
               textTransform: "uppercase",
-              marginBottom: 6,
+              marginBottom: 10,
+              textShadow: "0 2px 6px rgba(0,0,0,0.6)",
             }}
           >
             {scene.skyTitle}
@@ -133,13 +135,15 @@ export default async function Image({ params }: Props) {
           <div
             style={{
               display: "flex",
-              fontSize: scene.plaqueName.length > 14 ? 40 : 52,
+              fontSize: scene.plaqueName.length > 14 ? 56 : 72,
               fontWeight: 900,
-              letterSpacing: 2,
+              letterSpacing: 3,
               color: "#FFFFFF",
               textTransform: "uppercase",
-              marginBottom: 6,
+              marginBottom: 10,
               maxWidth: 1100,
+              textShadow:
+                "0 3px 10px rgba(0,0,0,0.75), 0 1px 0 rgba(0,0,0,0.9)",
             }}
           >
             {scene.plaqueName || "A SEAT WAITS"}
@@ -147,10 +151,11 @@ export default async function Image({ params }: Props) {
           <div
             style={{
               display: "flex",
-              fontSize: 22,
-              fontStyle: "italic",
-              color: "rgba(232,244,251,0.95)",
-              maxWidth: 1000,
+              fontSize: 32,
+              fontWeight: 600,
+              color: "#FFFFFF",
+              maxWidth: 1080,
+              textShadow: "0 2px 8px rgba(0,0,0,0.7)",
             }}
           >
             “{scene.skyMessage}”
