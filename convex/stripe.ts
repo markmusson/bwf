@@ -42,7 +42,13 @@ function getProductId(): string {
 }
 
 function getReturnUrl(): string {
-  const site = process.env.SITE_URL ?? "http://localhost:3000";
+  // Strip any path off SITE_URL so a mis-set value like
+  //   SITE_URL=https://example.com/stadium
+  // doesn't redirect the donor to /stadium/thanks (which 404s and
+  // dumps them back at the seat selector). Matches the same defensive
+  // normalize in convex/email.ts.
+  const raw = process.env.SITE_URL ?? "http://localhost:3000";
+  const site = raw.match(/^https?:\/\/[^/]+/)?.[0] ?? raw.replace(/\/$/, "");
   return `${site}/thanks?session_id={CHECKOUT_SESSION_ID}`;
 }
 

@@ -246,13 +246,24 @@ export function StadiumCanvas({ onSeatClaimed }: Props) {
   // Used by the hover tooltip so a hovered claimed seat shows its
   // dedication. Empty for seats with no approved tributes.
   const leadTributeByKey = useMemo(() => {
-    const map = new Map<string, { displayName: string | null; text: string }>();
+    const map = new Map<
+      string,
+      {
+        displayName: string | null;
+        recipientName: string | null;
+        text: string;
+      }
+    >();
     if (!tributeGroups) return map;
     for (const group of tributeGroups) {
       const lead = group.tributes[0];
       if (!lead) continue;
       const key = statusKey(group.seat.stand, group.seat.row, group.seat.num);
-      map.set(key, { displayName: lead.displayName, text: lead.text });
+      map.set(key, {
+        displayName: lead.displayName,
+        recipientName: lead.recipientName ?? null,
+        text: lead.text,
+      });
     }
     return map;
   }, [tributeGroups]);
@@ -412,7 +423,14 @@ export function StadiumCanvas({ onSeatClaimed }: Props) {
       lead.text.length > 90
         ? `${lead.text.slice(0, 89).trimEnd()}…`
         : lead.text;
-    return { name: lead.displayName ?? "Anonymous", text };
+    // "In tribute to <recipient> · by <donor>" when both present so the
+    // hover line names the dedicatee AND the donor; falls back to just
+    // the donor when no recipient was given.
+    const donor = lead.displayName ?? "Anonymous";
+    const name = lead.recipientName
+      ? `In tribute to ${lead.recipientName} · by ${donor}`
+      : donor;
+    return { name, text };
   })();
 
   return (
