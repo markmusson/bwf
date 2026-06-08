@@ -508,7 +508,19 @@ export async function _markPaidForTest(
       .withIndex("by_seat", (q) => q.eq("seatId", donation.seatId!))
       .first();
     if (hold) {
-      await ctx.db.delete(hold._id);
+      // Schedule the hold release for 10s in the future, NOT here.
+      // Releasing synchronously updates the reactive holds.getMine
+      // query immediately — which unmounts the donate modal in the
+      // browser before Stripe's iframe has a chance to navigate to
+      // return_url. The donor then ends up stranded on /stadium
+      // instead of /thanks. 10s is comfortably more than Stripe's
+      // success-state delay (~1-3s) but well under the cron's
+      // stale-hold sweep (1 min) so it doesn't pile up holds.
+      await ctx.scheduler.runAfter(
+        10_000,
+        internal.holds.releaseHoldInternal,
+        { holdId: hold._id },
+      );
     }
   }
 

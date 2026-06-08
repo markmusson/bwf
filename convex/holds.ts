@@ -125,6 +125,17 @@ export const activeSeatIds = query({
   },
 });
 
+// Internal: deferred hold release scheduled by donations.markPaid.
+// Runs ~10s after payment to avoid race-condition unmount of the
+// donate modal before Stripe's iframe redirects to return_url.
+export const releaseHoldInternal = internalMutation({
+  args: { holdId: v.id("holds") },
+  handler: async (ctx, { holdId }) => {
+    const hold = await ctx.db.get(holdId);
+    if (hold) await ctx.db.delete(holdId);
+  },
+});
+
 // Internal: cron-driven sweep. The active-hold uniqueness is enforced
 // at claim time, but expired rows pile up if we don't prune them.
 export const expireHolds = internalMutation({

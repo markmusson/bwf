@@ -2,8 +2,8 @@
 // @vitest-environment edge-runtime
 
 import { convexTest } from "convex-test";
-import { afterEach, beforeEach, describe, expect, test } from "vitest";
-import { api } from "./_generated/api";
+import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
+import { api, internal } from "./_generated/api";
 import {
   _createDraftForTest,
   _markPaidForTest,
@@ -250,7 +250,7 @@ describe("donations.markPaid", () => {
     return { t, seatId, donationId: draft.donationId };
   }
 
-  test("flips donation to paid, marks seat taken, releases the hold, attaches user by Stripe email", async () => {
+  test("flips donation to paid, marks seat taken, schedules hold release, attaches user by Stripe email", async () => {
     const { t, seatId, donationId } = await setupDraft();
 
     const result = await t.run((ctx) =>
@@ -278,8 +278,33 @@ describe("donations.markPaid", () => {
     expect(seat?.status).toBe("taken");
     expect(seat?.donationId).toBe(donationId);
 
+    // Hold release is now DEFERRED via the scheduler (10s) so the
+    // Stripe iframe has time to redirect the donor to /thanks before
+    // the holds.getMine reactive query unmounts the modal. The hold
+    // must still exist immediately after markPaid — that's the whole
+    // point of the change.
     const holds = await t.run((ctx) => ctx.db.query("holds").collect());
-    expect(holds).toHaveLength(0);
+    expect(holds).toHaveLength(1);
+  });
+
+  test("the deferred release scheduled by markPaid eventually deletes the hold", async () => {
+    const { t } = await setupDraft();
+    await t.run((ctx) =>
+      _markPaidForTest(ctx, {
+        stripeSessionId: "cs_test_123",
+        paymentIntentId: "pi_test_456",
+        donorEmail: "later@example.com",
+      }),
+    );
+    // The 10s timer is hard to simulate in convex-test without
+    // hijacking the event loop. Instead, invoke the scheduled mutation
+    // directly to prove the cleanup works.
+    const hold = await t.run((ctx) =>
+      ctx.db.query("holds").collect().then((rows) => rows[0]!),
+    );
+    await t.mutation(internal.holds.releaseHoldInternal, { holdId: hold._id });
+    const holdsAfter = await t.run((ctx) => ctx.db.query("holds").collect());
+    expect(holdsAfter).toHaveLength(0);
   });
 
   test("reuses an existing user when the Stripe email matches a known account", async () => {
