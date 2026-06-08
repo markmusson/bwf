@@ -29,7 +29,10 @@ interface Props {
 export default async function Image({ params }: Props) {
   const { slug } = await params;
   const convexUrl = process.env.NEXT_PUBLIC_CONVEX_URL;
-  const siteUrl = process.env.SITE_URL ?? "https://blue.bobwillisfund.org";
+  // Fallback to the live prod host so a missing Vercel env var can't
+  // bleed a stale BLUE reference into the share card footer. (The
+  // image route runs on Vercel — Convex's SITE_URL doesn't reach here.)
+  const siteUrl = process.env.SITE_URL ?? "https://seats.bobwillisfund.org";
 
   const templateBuffer = await readFile(
     path.join(process.cwd(), "public/share/stadium-template.jpg"),
