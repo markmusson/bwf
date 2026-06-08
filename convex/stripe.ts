@@ -197,6 +197,67 @@ export const setupProduct = internalAction({
   },
 });
 
+// Recovery action: walk every Stripe checkout session created in the
+// last N hours, find the ones Stripe says are `complete` but the
+// corresponding donation in Convex is still `pending`, and re-fire
+// markPaid for each. Use this to mop up donors whose webhook delivery
+// silently failed (the bug fixed in webhooks.ts on 8 Jun) — they
+// paid, Stripe took the money, but their seat never turned blue.
+// Idempotent end-to-end; safe to run multiple times.
+//
+// Run with:
+//   npx convex run --prod stripe:reconcileStuckDonations '{"hoursBack":72}'
+export const reconcileStuckDonations = internalAction({
+  args: { hoursBack: v.number() },
+  handler: async (
+    ctx,
+    { hoursBack },
+  ): Promise<{
+    scanned: number;
+    completedOnStripe: number;
+    markedPaid: number;
+    sessionIds: string[];
+  }> => {
+    const stripe = getStripe();
+    const since = Math.floor(Date.now() / 1000 - hoursBack * 3600);
+    let scanned = 0;
+    let completedOnStripe = 0;
+    let markedPaid = 0;
+    const repaired: string[] = [];
+    for await (const session of stripe.checkout.sessions.list({
+      created: { gte: since },
+      limit: 100,
+    })) {
+      scanned += 1;
+      if (session.status !== "complete") continue;
+      if (session.payment_status !== "paid") continue;
+      completedOnStripe += 1;
+      const donorEmail =
+        session.customer_details?.email ?? session.customer_email ?? undefined;
+      const paymentIntentId =
+        typeof session.payment_intent === "string"
+          ? session.payment_intent
+          : undefined;
+      const result: { donationId: string | null; alreadyPaid: boolean } =
+        await ctx.runMutation(internal.donations.markPaid, {
+          stripeSessionId: session.id,
+          paymentIntentId,
+          donorEmail,
+        });
+      if (result.donationId && !result.alreadyPaid) {
+        markedPaid += 1;
+        repaired.push(session.id);
+      }
+    }
+    return {
+      scanned,
+      completedOnStripe,
+      markedPaid,
+      sessionIds: repaired,
+    };
+  },
+});
+
 // stripeWebhook httpAction lives in convex/webhooks.ts so it can run
 // in Convex's V8 runtime (httpActions can't be defined in "use node"
 // files). It calls back into the recordEvent + markPaid internal

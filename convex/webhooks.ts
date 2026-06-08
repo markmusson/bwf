@@ -35,17 +35,14 @@ export const stripeWebhook = httpAction(async (ctx, request) => {
     return new Response("invalid signature", { status: 400 });
   }
 
-  try {
-    await ctx.runMutation(internal.donations.recordEvent, {
-      eventId: event.id,
-    });
-  } catch (err) {
-    if (err instanceof ConvexError && err.data === "event_already_processed") {
-      return new Response("ok", { status: 200 });
-    }
-    throw err;
-  }
-
+  // Order matters: run markPaid BEFORE recordEvent. markPaid is
+  // idempotent on the donation (early-returns when status==='paid'),
+  // so concurrent retries are safe. If we recorded the event first
+  // and markPaid then threw, every Stripe retry would see
+  // "event_already_processed" and short-circuit — leaving the
+  // donation stuck in pending forever, the seat grey, no receipt,
+  // and the /thanks page polling indefinitely. That's the scenario
+  // that bit us with the 8 deliveries Stripe flagged on June 4-7.
   if (event.type === "checkout.session.completed") {
     const session = event.data.object as Stripe.Checkout.Session;
     if (typeof session.id === "string") {
@@ -61,6 +58,20 @@ export const stripeWebhook = httpAction(async (ctx, request) => {
         donorEmail: donorEmail ?? undefined,
       });
     }
+  }
+
+  // Record the event id last. A concurrent delivery that beat us to
+  // recording is fine — the work has already been done idempotently
+  // above, so we treat "already_processed" as success.
+  try {
+    await ctx.runMutation(internal.donations.recordEvent, {
+      eventId: event.id,
+    });
+  } catch (err) {
+    if (err instanceof ConvexError && err.data === "event_already_processed") {
+      return new Response("ok", { status: 200 });
+    }
+    throw err;
   }
 
   return new Response("ok", { status: 200 });
