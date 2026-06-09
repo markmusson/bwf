@@ -63,6 +63,7 @@ export const sendReceipt = internalAction({
       ? rawSiteUrl.match(/^https?:\/\/[^/]+/)?.[0]
       : undefined;
     let shareImageUrl: string | undefined;
+    let seatShareUrl: string | undefined;
     if (siteUrl && donation.seatId) {
       const seat = await ctx.runQuery(internal.seats.getByIdInternal, {
         seatId: donation.seatId,
@@ -74,6 +75,7 @@ export const sendReceipt = internalAction({
           num: seat.num,
         });
         shareImageUrl = `${siteUrl}/seat/${slug}/opengraph-image`;
+        seatShareUrl = `${siteUrl}/seat/${slug}`;
       }
     }
     const receiptOptions = siteUrl
@@ -81,6 +83,7 @@ export const sendReceipt = internalAction({
           fundraisingPageUrl: `${siteUrl}/stadium`,
           managePageUrl: `${siteUrl}/manage`,
           ...(shareImageUrl ? { shareImageUrl } : {}),
+          ...(seatShareUrl ? { seatShareUrl } : {}),
         }
       : {};
     const { subject, html, text } = formatReceipt(
@@ -128,6 +131,7 @@ export const sendTestReceipt = internalAction({
     const shareImageUrl = siteUrl
       ? `${siteUrl}/seat/wyatt-1-1/opengraph-image`
       : undefined;
+    const seatShareUrl = siteUrl ? `${siteUrl}/seat/wyatt-1-1` : undefined;
 
     const { subject, html, text } = formatReceipt(
       {
@@ -141,6 +145,7 @@ export const sendTestReceipt = internalAction({
         ...(siteUrl ? { managePageUrl: `${siteUrl}/manage` } : {}),
         ...(siteUrl ? { fundraisingPageUrl: `${siteUrl}/stadium` } : {}),
         ...(shareImageUrl ? { shareImageUrl } : {}),
+        ...(seatShareUrl ? { seatShareUrl } : {}),
       },
     );
 

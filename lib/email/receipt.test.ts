@@ -117,4 +117,52 @@ describe("formatReceipt", () => {
       expect(out.html).toContain("&quot;");
     });
   });
+
+  describe("share-this-seat section (Adam, 9 Jun)", () => {
+    const seatShareUrl = "https://seats.bobwillisfund.org/seat/wyatt-1-4";
+
+    it("renders the 'Help Us Fill More Seats' heading + copy when seatShareUrl is set", () => {
+      const out = formatReceipt(BASE_DONATION, { email: "d@e.com" }, { seatShareUrl });
+      expect(out.html).toContain("Help Us Fill More Seats");
+      expect(out.html).toContain("final Blue for Bob campaign");
+      expect(out.text).toContain("Help Us Fill More Seats");
+    });
+
+    it("renders share intent links for X, LinkedIn, Facebook, WhatsApp", () => {
+      const out = formatReceipt(BASE_DONATION, { email: "d@e.com" }, { seatShareUrl });
+      expect(out.html).toMatch(/href="https:\/\/twitter\.com\/intent\/tweet[^"]*"/);
+      expect(out.html).toMatch(/href="https:\/\/www\.linkedin\.com\/sharing\/share-offsite[^"]*"/);
+      expect(out.html).toMatch(/href="https:\/\/www\.facebook\.com\/sharer[^"]*"/);
+      expect(out.html).toMatch(/href="https:\/\/wa\.me\/[^"]*"/);
+    });
+
+    it("each share link includes the donor's seat URL", () => {
+      const out = formatReceipt(BASE_DONATION, { email: "d@e.com" }, { seatShareUrl });
+      const expected = encodeURIComponent(seatShareUrl);
+      const altExpected = seatShareUrl.replace(/:/g, "%3A").replace(/\//g, "%2F");
+      // URLSearchParams may use either + or %20 for spaces but the URL
+      // itself should round-trip cleanly inside the href.
+      expect(
+        out.html.includes(expected) || out.html.includes(altExpected),
+      ).toBe(true);
+    });
+
+    it("section sits between the thank-you copy and the donation table", () => {
+      const out = formatReceipt(BASE_DONATION, { email: "d@e.com" }, { seatShareUrl });
+      const thankYouAt = out.html.indexOf(
+        "Your Blue Seat has been secured",
+      );
+      const shareHeadingAt = out.html.indexOf("Help Us Fill More Seats");
+      const donationLineAt = out.html.indexOf("Donation:");
+      expect(thankYouAt).toBeGreaterThan(-1);
+      expect(shareHeadingAt).toBeGreaterThan(thankYouAt);
+      expect(donationLineAt).toBeGreaterThan(shareHeadingAt);
+    });
+
+    it("omits the section entirely when no seatShareUrl is supplied", () => {
+      const out = formatReceipt(BASE_DONATION, { email: "d@e.com" });
+      expect(out.html).not.toContain("Help Us Fill More Seats");
+      expect(out.text).not.toContain("Help Us Fill More Seats");
+    });
+  });
 });

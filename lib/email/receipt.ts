@@ -1,5 +1,11 @@
 import { calculateGiftAidUpliftPence } from "../donation/giftAid";
 import { formatGbpPence } from "../money";
+import {
+  buildFacebookShareUrl,
+  buildLinkedInShareUrl,
+  buildTwitterShareUrl,
+  buildWhatsAppShareUrl,
+} from "../shareIntents";
 
 export interface ReceiptDonation {
   amountPence: number;
@@ -23,6 +29,11 @@ export interface ReceiptOptions {
   // /seat/<slug>/opengraph-image route). When provided, embedded at
   // the top of the email so the donor sees their dedicated seat first.
   shareImageUrl?: string;
+  // Optional URL to the donor's own seat page. When provided, the
+  // receipt body grows a "Help Us Fill More Seats" section with
+  // platform share buttons pointing at this URL (so the platforms
+  // unfurl with the donor's personalised OG card).
+  seatShareUrl?: string;
 }
 
 export interface ReceiptOutput {
@@ -82,6 +93,51 @@ export function formatReceipt(
     ? `<img src="${escapeHtml(opts.shareImageUrl)}" alt="Your dedicated seat at Edgbaston" width="560" style="display:block;width:100%;max-width:560px;height:auto;border-radius:12px;margin:0 0 16px">`
     : "";
 
+  const shareCopy =
+    "Please help us spread the word by sharing your Blue Seat on social media.";
+  const shareText =
+    "I just dedicated a seat at Edgbaston for the Bob Willis Fund — fighting prostate cancer in Bob's name.";
+  const shareBlock = opts.seatShareUrl
+    ? (() => {
+        const url = opts.seatShareUrl!;
+        const buttons: Array<{ label: string; href: string; bg: string }> = [
+          {
+            label: "Share on Facebook",
+            href: buildFacebookShareUrl({ url }),
+            bg: "#1877F2",
+          },
+          {
+            label: "Share on LinkedIn",
+            href: buildLinkedInShareUrl({ url }),
+            bg: "#0A66C2",
+          },
+          {
+            label: "Share on X",
+            href: buildTwitterShareUrl({ url, text: shareText }),
+            bg: "#000000",
+          },
+          {
+            label: "Share on WhatsApp",
+            href: buildWhatsAppShareUrl({ url, text: shareText }),
+            bg: "#25D366",
+          },
+        ];
+        const buttonHtml = buttons
+          .map(
+            (b) =>
+              `<a href="${escapeHtml(b.href)}" style="display:inline-block;margin:4px 4px 4px 0;padding:9px 14px;background:${b.bg};color:#ffffff;text-decoration:none;border-radius:999px;font-size:13px;font-weight:bold;font-family:Arial,sans-serif">${b.label}</a>`,
+          )
+          .join("");
+        return `
+          <div style="margin:18px 0 12px">
+            <p style="margin:0 0 4px;font-size:17px;font-weight:bold;color:#ffffff">Help Us Fill More Seats</p>
+            <p style="margin:0 0 10px;font-size:14px;line-height:1.55;color:#dbeafe">This is our final Blue for Bob campaign. ${shareCopy}</p>
+            <div style="line-height:1.8">${buttonHtml}</div>
+            <p style="margin:10px 0 0;font-size:13px;line-height:1.55;color:rgba(245,249,252,0.7)">Every share helps raise awareness and funds in the fight against prostate cancer, as we work towards turning Edgbaston completely blue one last time.</p>
+          </div>`;
+      })()
+    : "";
+
   const html = `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -98,6 +154,7 @@ export function formatReceipt(
           <p style="margin:0 0 18px;font-size:14px;color:#33a8e0">Blue for Bob 2026 · Edgbaston</p>
           <p style="margin:0 0 14px;font-size:15px;line-height:1.55">${greeting}</p>
           <p style="margin:0 0 14px;font-size:15px;line-height:1.55">Your Blue Seat has been secured. Thank you for helping us turn Edgbaston blue and making a difference in the fight against prostate cancer.</p>
+          ${shareBlock}
           <table width="100%" cellpadding="0" cellspacing="0" border="0" style="background:rgba(0,133,202,0.15);border-radius:8px;padding:16px;margin:16px 0">
             <tr><td style="font-size:14px;line-height:1.6">
               <p style="margin:0 0 6px"><strong>Donation:</strong> ${formatGbpPence(donation.amountPence)}</p>
@@ -115,11 +172,21 @@ export function formatReceipt(
 </body>
 </html>`;
 
+  const shareTextLines = opts.seatShareUrl
+    ? [
+        "Help Us Fill More Seats",
+        `This is our final Blue for Bob campaign. ${shareCopy}`,
+        `Share: ${opts.seatShareUrl}`,
+        "",
+      ]
+    : [];
+
   const textLines = [
     `Hello${donor.name ? ` ${donor.name.trim()}` : ""},`,
     "",
     "Your Blue Seat has been secured. Thank you for helping us turn Edgbaston blue and making a difference in the fight against prostate cancer.",
     "",
+    ...shareTextLines,
     `Donation: ${formatGbpPence(donation.amountPence)}`,
     donation.giftAid ? `Gift Aid uplift: ${formatGbpPence(giftAidUplift)}` : "",
     `Total to BWF: ${formatGbpPence(total)}`,
