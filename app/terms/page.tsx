@@ -8,7 +8,7 @@ export const metadata: Metadata = {
 
 export default function TermsPage() {
   return (
-    <PolicyShell title="Terms of use" reviewedDate="30 April 2026">
+    <PolicyShell title="Terms of use" reviewedDate="3 July 2026">
       <p>
         These terms cover your use of the BWF Virtual Seats platform. By
         donating, leaving a tribute, or signing in, you agree to them. If you
@@ -98,6 +98,61 @@ export default function TermsPage() {
         These terms are governed by the laws of England &amp; Wales. The courts
         of England &amp; Wales have exclusive jurisdiction.
       </p>
+
+      <h2 className="font-display mt-4 text-2xl">Competition terms</h2>
+      <p>
+        The Bob Willis Fund is giving supporters the opportunity to win two
+        tickets to Blue for Bob at Edgbaston.
+      </p>
+
+      <h3 className="font-display mt-2 text-xl">How to enter</h3>
+      <p>There are two ways to enter the prize draw:</p>
+
+      <p>
+        <strong>1. Automatic entry with a Blue Seat donation</strong>
+      </p>
+      <p>
+        Supporters who sponsor a Virtual Blue Seat during the promotional
+        period will automatically receive one entry into the prize draw as a
+        thank you for supporting the work of The Bob Willis Fund. Donations
+        remain entirely voluntary and support the Fund&rsquo;s charitable
+        objectives.
+      </p>
+
+      <p>
+        <strong>2. Free postal entry</strong>
+      </p>
+      <p>No donation or purchase is necessary to enter.</p>
+      <p>To enter free of charge, send your:</p>
+      <ul className="list-disc pl-6">
+        <li>Full name</li>
+        <li>Postal address</li>
+        <li>Email address</li>
+        <li>Telephone number</li>
+      </ul>
+      <p>on a postcard or in a sealed envelope to:</p>
+      <p className="bg-bwf-navy ring-bwf-blue/30 rounded-lg p-4 ring-1">
+        The Bob Willis Fund
+        <br />
+        Stafford House
+        <br />
+        10 Prince Of Wales Road
+        <br />
+        Dorchester
+        <br />
+        Dorset
+        <br />
+        DT1 1PW
+        <br />
+        United Kingdom
+      </p>
+      <p>
+        Postal entries must be received before the competition closing date and
+        will receive one entry into the prize draw. Postal entries will be
+        treated exactly the same as entries received through Virtual Blue Seat
+        sponsorships.
+      </p>
+      <p>Only one postal entry per person will be accepted.</p>
     </PolicyShell>
   );
 }
